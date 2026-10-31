@@ -6,6 +6,7 @@ signal defeated
 
 const ItemS = preload("res://scripts/item.gd")
 const ProjS = preload("res://scripts/projectile.gd")
+const MIN_HITS := 6   # boss en az bu kadar vuruşta ölür (hasar yükseltmeleri ne olursa olsun)
 
 var boss_id := "plastic"
 var max_hp := 12
@@ -131,7 +132,7 @@ func die() -> void:
     hit_cd = 0.35
     flash = 0.2
     hits += 1
-    hp -= 1 + int(GameState.upgrades["damage"])
+    hp -= mini(1 + int(GameState.upgrades["damage"]), ceili(float(max_hp) / MIN_HITS))
     if hits % 3 == 0:
         var it := ItemS.new()
         it.kind = "recycle" if randf() < 0.5 else "trash"

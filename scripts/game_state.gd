@@ -74,16 +74,16 @@ func apply_item(kind: String) -> void:
         match pick:
             "double_jump":
                 upgrades["double_jump"] = true
-                text = "GERİ DÖNÜŞÜM: Çift zıplama!"
+                text = "Fidan dikildi: Çift zıplama!"
             "speed":
                 upgrades["speed"] += 1
-                text = "GERİ DÖNÜŞÜM: Hız artışı!"
+                text = "Fidan dikildi: Hız artışı!"
             "shield":
                 upgrades["shield"] += 1
-                text = "GERİ DÖNÜŞÜM: Kalkan (1 hasarı emer)!"
+                text = "Fidan dikildi: Kalkan (1 hasarı emer)!"
             "heal":
                 hp = mini(hp + 1, max_hp)
-                text = "GERİ DÖNÜŞÜM: +1 can!"
+                text = "Fidan dikildi: +1 can!"
     else:
         trash_total += 1
         trash_stock += 1
