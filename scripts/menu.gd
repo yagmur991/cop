@@ -9,6 +9,16 @@ signal quit_to_menu
 const HowToS = preload("res://scripts/howto.gd")
 const ArtS = preload("res://scripts/art.gd")
 
+# Cozy fonts (OFL licensed, see assets/fonts)
+const FontTitle: Font = preload("res://assets/fonts/YoungSerif-Regular.ttf")
+const FontBtn: Font = preload("res://assets/fonts/Lora-Bold.ttf")
+const FontText: Font = preload("res://assets/fonts/Lora-Regular.ttf")
+
+# Cozy palette: warm cream text, cocoa ink, soft outlines
+const CREAM := Color(1.0, 0.96, 0.86)
+const COCOA := Color(0.27, 0.18, 0.13)
+const OUTLINE := Color(0.24, 0.17, 0.13)
+
 var is_pause := false
 var page := "main"
 var sel := 0
@@ -251,7 +261,7 @@ func _draw() -> void:
     if page == "howto":
         return
     if is_pause:
-        draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, 0.72))
+        draw_rect(Rect2(0, 0, 1280, 720), Color(0.1, 0.07, 0.05, 0.72))
     else:
         _draw_background()
     match page:
@@ -265,99 +275,109 @@ func _draw() -> void:
             _draw_credits()
 
 
-func _outlined(text: String, pos: Vector2, width: float, size: int, col: Color, outline := 8) -> void:
-    var f := ThemeDB.fallback_font
-    draw_string_outline(f, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, outline, Color(0.04, 0.1, 0.07))
+# Mutes a color: lower saturation, slightly lifted value (pastel / cozy look)
+func _soft(c: Color) -> Color:
+    return Color.from_hsv(c.h, c.s * 0.5, lerpf(c.v, 0.88, 0.35))
+
+
+func _outlined(text: String, pos: Vector2, width: float, size: int, col: Color, outline := 6, f: Font = FontBtn) -> void:
+    draw_string_outline(f, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, outline, OUTLINE)
     draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, col)
 
 
 func _draw_title(center_x: float, y: float, size: int) -> void:
-    var f := ThemeDB.fallback_font
+    var f: Font = FontTitle
     var title := Loc.t("game_title")
     var total := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
     var x := center_x - total / 2.0
-    var cols := [GameState.trash_colors["glass"], GameState.trash_colors["paper"], GameState.trash_colors["plastic"], GameState.trash_colors["metal"]]
+    var cols := [_soft(GameState.trash_colors["glass"]), _soft(GameState.trash_colors["paper"]), _soft(GameState.trash_colors["plastic"]), _soft(GameState.trash_colors["metal"])]
     var ci := 0
     for i in title.length():
         var ch := title.substr(i, 1)
         var w := f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
         if ch != " ":
             var pos := Vector2(x, y + sin(t * 2.0 + i * 0.6) * 6.0)
-            draw_string(f, pos + Vector2(4, 7), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, 0.45))
-            draw_string_outline(f, pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 14, Color(0.05, 0.15, 0.1))
+            draw_string(f, pos + Vector2(4, 7), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.15, 0.1, 0.07, 0.35))
+            draw_string_outline(f, pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 12, OUTLINE)
             draw_string(f, pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, cols[ci % 4])
             ci += 1
         x += w
 
 
+# Shared "slab" look for buttons and option rows
+func _slab(rr: Rect2, base: Color, selected: bool) -> void:
+    draw_rect(Rect2(rr.position + Vector2(3, 5), rr.size), Color(0.15, 0.09, 0.06, 0.3))
+    draw_rect(rr, base.lightened(0.1) if selected else base.darkened(0.06))
+    draw_rect(Rect2(rr.position, Vector2(rr.size.x, 6)), base.lightened(0.3))
+    draw_rect(rr, CREAM if selected else Color(CREAM, 0.5), false, 3.0 if selected else 2.0)
+
+
 func _btn(r: Rect2, label: String, col: Color, selected: bool, enabled: bool = true) -> void:
-    var f := ThemeDB.fallback_font
     var rr := r
     if selected:
         rr = r.grow_individual(16, 3, 16, 3)
-    var base := col if enabled else Color(0.35, 0.35, 0.38)
-    draw_rect(Rect2(rr.position + Vector2(4, 5), rr.size), Color(0, 0, 0, 0.4))
-    draw_rect(rr, base.darkened(0.1) if selected else base.darkened(0.35))
-    draw_rect(Rect2(rr.position, Vector2(rr.size.x, 7)), base.lightened(0.25))
-    draw_rect(rr, Color.WHITE if selected else Color(1, 1, 1, 0.25), false, 3.0 if selected else 2.0)
-    var tcol := Color.WHITE if enabled else Color(0.7, 0.7, 0.72)
-    draw_string_outline(f, rr.position + Vector2(0, 37), label, HORIZONTAL_ALIGNMENT_CENTER, rr.size.x, 28, 6, Color(0, 0, 0, 0.8))
-    draw_string(f, rr.position + Vector2(0, 37), label, HORIZONTAL_ALIGNMENT_CENTER, rr.size.x, 28, tcol)
+    var base := col if enabled else Color(0.62, 0.58, 0.55)
+    _slab(rr, base, selected)
+    var tcol := COCOA if enabled else Color(0.45, 0.4, 0.37)
+    draw_string(FontBtn, rr.position + Vector2(0, 37), label, HORIZONTAL_ALIGNMENT_CENTER, rr.size.x, 28, tcol)
     if selected:
-        ArtS.recycle(self, Vector2(rr.position.x + 28, rr.get_center().y), 13.0, t * 2.0, Color.WHITE)
-        ArtS.recycle(self, Vector2(rr.end.x - 28, rr.get_center().y), 13.0, -t * 2.0, Color.WHITE)
+        ArtS.recycle(self, Vector2(rr.position.x + 28, rr.get_center().y), 13.0, t * 2.0, COCOA)
+        ArtS.recycle(self, Vector2(rr.end.x - 28, rr.get_center().y), 13.0, -t * 2.0, COCOA)
 
 
 func _btn_cols() -> Array:
-    return [GameState.trash_colors["glass"], GameState.trash_colors["paper"], GameState.trash_colors["plastic"], GameState.trash_colors["metal"], GameState.trash_colors["glass"], GameState.trash_colors["paper"]]
+    var g: Color = _soft(GameState.trash_colors["glass"])
+    var p: Color = _soft(GameState.trash_colors["paper"])
+    var pl: Color = _soft(GameState.trash_colors["plastic"])
+    var m: Color = _soft(GameState.trash_colors["metal"])
+    return [g, p, pl, m, g, p]
 
 
 func _draw_main() -> void:
-    var f := ThemeDB.fallback_font
+    var f: Font = FontText
     if is_pause:
-        draw_rect(Rect2(400, 130, 480, 520), Color(0.07, 0.14, 0.12, 0.95))
-        draw_rect(Rect2(400, 130, 480, 520), Color(0.4, 0.9, 0.5), false, 3.0)
-        _outlined(Loc.t("p_title"), Vector2(400, 220), 480.0, 54, Color.WHITE)
-        draw_string(f, Vector2(410, 625), Loc.t("p_note"), HORIZONTAL_ALIGNMENT_CENTER, 460.0, 15, Color(0.7, 0.85, 0.75))
+        draw_rect(Rect2(400, 130, 480, 520), Color(0.16, 0.12, 0.1, 0.95))
+        draw_rect(Rect2(400, 130, 480, 520), Color(0.62, 0.74, 0.6), false, 3.0)
+        _outlined(Loc.t("p_title"), Vector2(400, 220), 480.0, 54, CREAM, 8, FontTitle)
+        draw_string(f, Vector2(410, 625), Loc.t("p_note"), HORIZONTAL_ALIGNMENT_CENTER, 460.0, 15, Color(0.85, 0.8, 0.7))
     else:
         _draw_title(640.0, 190.0, 118)
-        _outlined(Loc.t("tagline"), Vector2(0, 252), 1280.0, 28, Color(1, 1, 0.9), 6)
+        _outlined(Loc.t("tagline"), Vector2(0, 252), 1280.0, 28, CREAM, 5)
         # language chips
         var cn := ["EN", "TR"]
         for i in 2:
             var r := _chip_rect(i)
             var on := (Loc.lang == "en" and i == 0) or (Loc.lang == "tr" and i == 1)
-            draw_rect(r, Color(0.2, 0.6, 0.35) if on else Color(0, 0, 0, 0.45))
-            draw_rect(r, Color.WHITE, false, 2.0)
-            draw_string(f, r.position + Vector2(0, 25), cn[i], HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 20, Color.WHITE)
-        draw_string(f, Vector2(0, 710), "v0.1", HORIZONTAL_ALIGNMENT_RIGHT, 1262.0, 14, Color(1, 1, 1, 0.6))
+            draw_rect(r, _soft(GameState.trash_colors["glass"]) if on else Color(0.15, 0.1, 0.07, 0.45))
+            draw_rect(r, CREAM, false, 2.0)
+            draw_string(FontBtn, r.position + Vector2(0, 25), cn[i], HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 20, COCOA if on else CREAM)
+        draw_string(f, Vector2(0, 710), "v0.1", HORIZONTAL_ALIGNMENT_RIGHT, 1262.0, 14, Color(CREAM, 0.7))
     var items := _items()
     var cols := _btn_cols()
     for i in items.size():
         var id: String = items[i][0]
         _btn(_item_rect(i), Loc.t(items[i][1]), cols[i % cols.size()], i == sel, _enabled(id))
         if id == "continue" and not _enabled(id) and not is_pause:
-            draw_string(f, _item_rect(i).position + Vector2(400, 33), Loc.t("m_nosave"), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.7))
+            draw_string(f, _item_rect(i).position + Vector2(400, 33), Loc.t("m_nosave"), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(CREAM, 0.75))
 
 
 func _draw_back(hover_mouse: bool = true) -> void:
-    var f := ThemeDB.fallback_font
     var hover := back_rect.has_point(get_local_mouse_position())
-    draw_rect(back_rect, Color(0.25, 0.4, 0.5) if not hover else Color(0.35, 0.55, 0.65))
-    draw_rect(back_rect, Color(1, 1, 1, 0.8), false, 2.0)
-    draw_string(f, back_rect.position + Vector2(0, 31), Loc.t("o_back"), HORIZONTAL_ALIGNMENT_CENTER, back_rect.size.x, 24, Color.WHITE)
+    var c: Color = _soft(GameState.trash_colors["paper"])
+    draw_rect(back_rect, c.lightened(0.1) if hover else c)
+    draw_rect(back_rect, Color(CREAM, 0.9), false, 2.0)
+    draw_string(FontBtn, back_rect.position + Vector2(0, 31), Loc.t("o_back"), HORIZONTAL_ALIGNMENT_CENTER, back_rect.size.x, 24, COCOA)
 
 
 func _panel_bg() -> void:
     if not is_pause:
-        draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, 0.5))
+        draw_rect(Rect2(0, 0, 1280, 720), Color(0.12, 0.08, 0.06, 0.5))
 
 
 func _draw_difficulty() -> void:
-    var f := ThemeDB.fallback_font
     _panel_bg()
-    _outlined(Loc.t("d_title"), Vector2(0, 130), 1280.0, 56, Color.WHITE)
-    var cols := [GameState.trash_colors["glass"], GameState.trash_colors["plastic"], Color(0.85, 0.25, 0.2)]
+    _outlined(Loc.t("d_title"), Vector2(0, 130), 1280.0, 56, CREAM, 8, FontTitle)
+    var cols := [_soft(GameState.trash_colors["glass"]), _soft(GameState.trash_colors["plastic"]), _soft(Color(0.85, 0.25, 0.2))]
     var names := ["d_easy", "d_normal", "d_hard"]
     var descs := ["d_easy_desc", "d_normal_desc", "d_hard_desc"]
     for i in 3:
@@ -367,28 +387,26 @@ func _draw_difficulty() -> void:
             r = r.grow(12)
             r.position.y += sin(t * 4.0) * 4.0
         var c: Color = cols[i]
-        draw_rect(Rect2(r.position + Vector2(5, 6), r.size), Color(0, 0, 0, 0.45))
-        draw_rect(r, c.darkened(0.55))
-        draw_rect(Rect2(r.position, Vector2(r.size.x, 64)), c.darkened(0.1))
-        draw_rect(r, Color.WHITE if on else Color(1, 1, 1, 0.3), false, 4.0 if on else 2.0)
-        draw_string_outline(f, r.position + Vector2(0, 46), Loc.t(names[i]), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 40, 6, Color(0, 0, 0, 0.7))
-        draw_string(f, r.position + Vector2(0, 46), Loc.t(names[i]), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 40, Color.WHITE)
+        draw_rect(Rect2(r.position + Vector2(5, 6), r.size), Color(0.15, 0.09, 0.06, 0.4))
+        draw_rect(r, Color(0.25, 0.19, 0.16).lerp(c, 0.15))
+        draw_rect(Rect2(r.position, Vector2(r.size.x, 64)), c)
+        draw_rect(r, CREAM if on else Color(CREAM, 0.35), false, 4.0 if on else 2.0)
+        draw_string(FontTitle, r.position + Vector2(0, 46), Loc.t(names[i]), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 40, COCOA)
         # thermometer
         var tc := Vector2(r.get_center().x, r.position.y + 210)
-        draw_rect(Rect2(tc + Vector2(-9, -90), Vector2(18, 110)), Color(0.95, 0.95, 0.95))
+        draw_rect(Rect2(tc + Vector2(-9, -90), Vector2(18, 110)), Color(0.95, 0.93, 0.88))
         var lvl := (i + 1) / 3.0
-        draw_rect(Rect2(tc + Vector2(-5, 16 - 106.0 * lvl), Vector2(10, 106.0 * lvl)), c.lightened(0.2))
-        draw_circle(tc + Vector2(0, 30), 17.0, c.lightened(0.1))
-        draw_circle(tc + Vector2(0, 30), 17.0, Color.WHITE, false, 2.0)
-        draw_multiline_string(f, r.position + Vector2(24, 290), Loc.t(descs[i]), HORIZONTAL_ALIGNMENT_CENTER, r.size.x - 48.0, 20, 4, Color.WHITE)
-    draw_string(f, Vector2(0, 626), Loc.t("nav_hint_lr"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 18, Color(0.85, 0.9, 0.9))
+        draw_rect(Rect2(tc + Vector2(-5, 16 - 106.0 * lvl), Vector2(10, 106.0 * lvl)), c.darkened(0.12))
+        draw_circle(tc + Vector2(0, 30), 17.0, c.darkened(0.12))
+        draw_circle(tc + Vector2(0, 30), 17.0, CREAM, false, 2.0)
+        draw_multiline_string(FontText, r.position + Vector2(24, 290), Loc.t(descs[i]), HORIZONTAL_ALIGNMENT_CENTER, r.size.x - 48.0, 20, 4, CREAM)
+    draw_string(FontText, Vector2(0, 626), Loc.t("nav_hint_lr"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 18, Color(CREAM, 0.85))
     _draw_back()
 
 
 func _draw_options() -> void:
-    var f := ThemeDB.fallback_font
     _panel_bg()
-    _outlined(Loc.t("o_title"), Vector2(0, 150), 1280.0, 56, Color.WHITE)
+    _outlined(Loc.t("o_title"), Vector2(0, 150), 1280.0, 56, CREAM, 8, FontTitle)
     var cols := _btn_cols()
     var labels := [Loc.t("o_language"), Loc.t("o_fullscreen"), Loc.t("o_back")]
     var vals := ["<  %s  >" % ("English" if Loc.lang == "en" else "Türkçe"), "<  %s  >" % (Loc.t("o_on") if Loc.fullscreen else Loc.t("o_off")), ""]
@@ -398,26 +416,23 @@ func _draw_options() -> void:
         if on:
             r = r.grow_individual(14, 3, 14, 3)
         var c: Color = cols[i]
-        draw_rect(Rect2(r.position + Vector2(4, 5), r.size), Color(0, 0, 0, 0.4))
-        draw_rect(r, c.darkened(0.1) if on else c.darkened(0.4))
-        draw_rect(Rect2(r.position, Vector2(r.size.x, 7)), c.lightened(0.25))
-        draw_rect(r, Color.WHITE if on else Color(1, 1, 1, 0.25), false, 3.0 if on else 2.0)
+        _slab(r, c, on)
         if i < 2:
-            draw_string(f, r.position + Vector2(24, 46), labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color.WHITE)
-            draw_string(f, r.position + Vector2(0, 46), vals[i], HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 24.0, 28, Color.WHITE)
+            draw_string(FontBtn, r.position + Vector2(24, 46), labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, COCOA)
+            draw_string(FontBtn, r.position + Vector2(0, 46), vals[i], HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 24.0, 28, COCOA)
         else:
-            draw_string(f, r.position + Vector2(0, 46), labels[i], HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 28, Color.WHITE)
+            draw_string(FontBtn, r.position + Vector2(0, 46), labels[i], HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 28, COCOA)
         if on:
-            ArtS.recycle(self, Vector2(r.position.x - 28, r.get_center().y), 13.0, t * 2.0, Color.WHITE)
-    draw_string(f, Vector2(0, 626), Loc.t("nav_hint"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 18, Color(0.85, 0.9, 0.9))
+            ArtS.recycle(self, Vector2(r.position.x - 28, r.get_center().y), 13.0, t * 2.0, CREAM)
+    draw_string(FontText, Vector2(0, 626), Loc.t("nav_hint"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 18, Color(CREAM, 0.85))
     _draw_back()
 
 
 func _draw_credits() -> void:
     _panel_bg()
-    _outlined(Loc.t("c_title"), Vector2(0, 150), 1280.0, 56, Color.WHITE)
+    _outlined(Loc.t("c_title"), Vector2(0, 150), 1280.0, 56, CREAM, 8, FontTitle)
     for i in 4:
-        _outlined(Loc.t("c_%d" % (i + 1)), Vector2(0, 270 + i * 70), 1280.0, 28, Color(1, 1, 0.9), 6)
+        _outlined(Loc.t("c_%d" % (i + 1)), Vector2(0, 270 + i * 70), 1280.0, 28, CREAM, 5)
     for i in 4:
         ArtS.trash(self, GameState.trash_types[i], Vector2(500 + i * 90, 560 + sin(t * 2.0 + i) * 6.0), 2.0)
     _draw_back()
