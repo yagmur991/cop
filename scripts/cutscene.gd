@@ -13,33 +13,47 @@ var delay := 0.3
 
 static func intro_slides() -> Array:
     return [
-        {"scene": "earth_good", "who": "ANLATICI", "text": "Bir zamanlar dünyamız mavi ve yemyeşildi. Her şey yerli yerindeydi."},
-        {"scene": "earth_bad", "who": "ANLATICI", "text": "Ama fabrikalar durmadı, çöpler büyüdü. İklim değişikliği ve küresel ısınma dünyayı kasıp kavurmaya başladı."},
-        {"scene": "ruins", "who": "ANLATICI", "text": "Şehirler harap oldu, yazlar yakıcı, hava zehirli..."},
-        {"scene": "ocean", "who": "ANLATICI", "text": "Okyanuslar plastikle doldu, buzullar eriyor. Zaman hızla tükeniyor."},
-        {"scene": "mentor", "who": "PROF. GAIA", "text": "Hâlâ umut var! Atıkları doğru toplayıp geri dönüştürürsek dünyayı kurtarabiliriz. Bu görev için seni seçtik!"},
+        {"scene": "earth_good", "who": "who_narrator", "text": "intro_1"},
+        {"scene": "earth_bad", "who": "who_narrator", "text": "intro_2"},
+        {"scene": "ruins", "who": "who_narrator", "text": "intro_3"},
+        {"scene": "ocean", "who": "who_narrator", "text": "intro_4"},
+        {"scene": "mentor", "who": "who_gaia", "text": "intro_5"},
         {"scene": "who", "who": "", "text": ""},
     ]
 
 
 static func good_slides() -> Array:
     return [
-        {"scene": "world_good", "who": "ANLATICI", "text": "Başardın! Hava temizlendi, nehirler berraklaştı, rüzgâr türbinleri yeniden dönüyor."},
-        {"scene": "mentor_happy", "who": "PROF. GAIA", "text": "Tebrikler! Seni seçmekte haklıymışız. Dünya yeniden nefes alıyor. Sen bir kahramansın!"},
+        {"scene": "world_good", "who": "who_narrator", "text": "good_1"},
+        {"scene": "mentor_happy", "who": "who_gaia", "text": "good_2"},
     ]
 
 
 static func bad_slides() -> Array:
     return [
-        {"scene": "world_bad", "who": "ANLATICI", "text": "Çok geç kaldık... Kirlilik her yeri sardı. Dünya eskisinden de kötü durumda."},
-        {"scene": "grave", "who": "ANLATICI", "text": "Bize bu görevi veren Prof. Gaia bu felaketi görmeye dayanamadı. Artık aramızda değil..."},
+        {"scene": "world_bad", "who": "who_narrator", "text": "bad_1"},
+        {"scene": "grave", "who": "who_narrator", "text": "bad_2"},
     ]
+
+
+func _text(s: Dictionary) -> String:
+    if s.get("raw", false):
+        return s["text"]
+    if s["text"] == "":
+        return ""
+    return Loc.t(s["text"])
+
+
+func _who_name(s: Dictionary) -> String:
+    if s["who"] == "":
+        return ""
+    return Loc.t(s["who"])
 
 
 func _process(delta: float) -> void:
     t += delta
     delay -= delta
-    var txt: String = slides[idx]["text"]
+    var txt := _text(slides[idx])
     shown = minf(shown + 45.0 * delta, float(txt.length()))
     if delay <= 0.0:
         if Input.is_action_just_pressed("ui_cancel"):
@@ -64,18 +78,18 @@ func _draw() -> void:
     var f := ThemeDB.fallback_font
     var sc: String = s["scene"]
     _draw_scene(sc)
-    var txt: String = s["text"]
+    var txt := _text(s)
     var part := txt.substr(0, int(shown))
     if sc == "stats":
         draw_multiline_string(f, Vector2(0, 230), part, HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 32)
     elif sc != "who":
         draw_rect(Rect2(60, 510, 1160, 170), Color(0, 0, 0, 0.72))
         draw_rect(Rect2(60, 510, 1160, 170), Color(1, 1, 1, 0.8), false, 2.0)
-        draw_string(f, Vector2(90, 548), s["who"], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1.0, 0.85, 0.3))
+        draw_string(f, Vector2(90, 548), _who_name(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1.0, 0.85, 0.3))
         draw_multiline_string(f, Vector2(90, 590), part, HORIZONTAL_ALIGNMENT_LEFT, 1100.0, 26)
     if (sc == "who" or shown >= float(txt.length())) and int(t * 2.0) % 2 == 0:
-        draw_string(f, Vector2(1090, 668), "Enter >", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
-    draw_string(f, Vector2(1130, 28), "Esc: atla", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, 0.6))
+        draw_string(f, Vector2(1090, 668), Loc.t("cs_next"), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
+    draw_string(f, Vector2(1130, 28), Loc.t("cs_skip"), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, 0.6))
 
 
 func _draw_scene(sc: String) -> void:
@@ -217,7 +231,7 @@ func _who() -> void:
     var p := Vector2(640, 380)
     draw_rect(Rect2(p + Vector2(-14, -22) * 4.0, Vector2(28, 44) * 4.0), Color(0.12, 0.12, 0.16))
     draw_string(f, p + Vector2(-30, 25), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 110, Color(0.4, 0.4, 0.5))
-    draw_string(f, Vector2(0, 150), "KİMSİN SEN?", HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 72, Color.WHITE)
+    draw_string(f, Vector2(0, 150), Loc.t("cs_title"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 72, Color.WHITE)
 
 
 func _tree(p: Vector2, alive: bool) -> void:

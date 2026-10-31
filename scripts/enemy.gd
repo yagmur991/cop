@@ -35,7 +35,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
     t += delta
     velocity.y += 1500.0 * delta
-    velocity.x = dir * 60.0 * (1.0 + GameState.pollution / 100.0)
+    velocity.x = dir * 60.0 * (1.0 + GameState.pollution / 100.0) * GameState.diff_enemy()
     move_and_slide()
     if position.x > origin_x + range_x:
         dir = -1

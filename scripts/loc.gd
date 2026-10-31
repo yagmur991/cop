@@ -1,0 +1,195 @@
+extends Node
+# Localization (English / Türkçe) + saved settings. Autoload: "Loc".
+# Use Loc.t("key") or Loc.t("key", [args]). Index 0 = English, 1 = Turkish.
+
+signal language_changed
+
+const SETTINGS_PATH := "user://settings.cfg"
+
+var lang := "en"
+var fullscreen := false
+
+var S := {
+    # ---------------- general / names ----------------
+    "game_title": ["SAVE GAIA", "SAVE GAIA"],
+    "tagline": ["Collect. Recycle. Save the world.", "Topla. Geri dönüştür. Dünyayı kurtar."],
+    "trash_glass": ["Glass", "Cam"],
+    "trash_metal": ["Metal", "Metal"],
+    "trash_paper": ["Paper", "Kağıt"],
+    "trash_plastic": ["Plastic", "Plastik"],
+    "done": ["DONE", "TAMAM"],
+    # ---------------- main / pause menu ----------------
+    "m_new": ["New Game", "Yeni Oyun"],
+    "m_continue": ["Continue", "Devam Et"],
+    "m_howto": ["How to Play", "Nasıl Oynanır"],
+    "m_options": ["Options", "Seçenekler"],
+    "m_credits": ["Credits", "Emeği Geçenler"],
+    "m_quit": ["Quit", "Çıkış"],
+    "m_nosave": ["No save found", "Kayıt bulunamadı"],
+    "p_title": ["PAUSED", "DURAKLATILDI"],
+    "p_resume": ["Resume", "Devam"],
+    "p_menu": ["Quit to Menu", "Ana Menüye Dön"],
+    "p_note": ["Progress is saved at every level start and boss fight.", "İlerleme her bölüm başında ve boss savaşında kaydedilir."],
+    # ---------------- difficulty ----------------
+    "d_title": ["Choose Difficulty", "Zorluk Seç"],
+    "d_easy": ["Easy", "Kolay"],
+    "d_normal": ["Normal", "Normal"],
+    "d_hard": ["Hard", "Zor"],
+    "d_easy_desc": ["More health, slower pollution, gentler enemies and bosses.", "Daha fazla can, yavaş kirlilik, daha yumuşak düşmanlar ve bosslar."],
+    "d_normal_desc": ["The intended experience.", "Tasarlandığı gibi deneyim."],
+    "d_hard_desc": ["Less health, fast pollution, tougher enemies and bosses.", "Az can, hızlı kirlilik, daha sert düşmanlar ve bosslar."],
+    # ---------------- options / credits ----------------
+    "o_title": ["Options", "Seçenekler"],
+    "o_language": ["Language", "Dil"],
+    "o_fullscreen": ["Fullscreen", "Tam Ekran"],
+    "o_on": ["On", "Açık"],
+    "o_off": ["Off", "Kapalı"],
+    "o_back": ["Back", "Geri"],
+    "c_title": ["Credits", "Emeği Geçenler"],
+    "c_1": ["A game made for the hackathon by the Save Gaia team", "Save Gaia ekibi tarafından hackathon için yapıldı"],
+    "c_2": ["Recycling bin sprite: yureino-kage (itch.io)", "Geri dönüşüm kutusu sprite'ı: yureino-kage (itch.io)"],
+    "c_3": ["Made with Godot Engine", "Godot Engine ile yapıldı"],
+    "c_4": ["Thanks for playing!", "Oynadığın için teşekkürler!"],
+    "nav_hint": ["W/S or Up/Down: select    Enter: confirm    Esc: back", "W/S veya Yukarı/Aşağı: seç    Enter: onayla    Esc: geri"],
+    "nav_hint_lr": ["A/D or Left/Right: choose    Enter: confirm    Esc: back", "A/D veya Sol/Sağ: seç    Enter: onayla    Esc: geri"],
+    # ---------------- how to play ----------------
+    "h_title": ["How to Play", "Nasıl Oynanır"],
+    "h_page": ["Page %d/%d", "Sayfa %d/%d"],
+    "h_p1": ["Controls", "Kontroller"],
+    "h_p2": ["Your Mission", "Görevin"],
+    "h_p3": ["Items & Bins", "Itemler ve Kutular"],
+    "h_p4": ["Bosses & Tips", "Bosslar ve İpuçları"],
+    "h_move": ["Move (A / D or arrow keys)", "Hareket (A / D veya yön tuşları)"],
+    "h_jump": ["Jump (double jump after an upgrade)", "Zıpla (upgrade ile çift zıplama)"],
+    "h_attack": ["Attack - also opens chests", "Saldır - sandıkları da açar"],
+    "h_inv": ["Inventory", "Envanter"],
+    "h_pause": ["Pause menu", "Duraklatma menüsü"],
+    "h_m1": ["Defeat the trash monsters and smash open chests: they drop items.", "Çöp canavarlarını yen ve sandıkları kır: item düşürürler."],
+    "h_m2": ["Saplings clean the air: each one lowers pollution and gives a clean upgrade. Grow a chest's saplings into a tree!", "Fidanlar havayı temizler: her biri kirliliği düşürür ve temiz bir upgrade verir. Bir sandığın fidanlarını ağaca dönüştür!"],
+    "h_m3": ["Trash makes you stronger but raises pollution. You carry glass, metal, paper and plastic with you.", "Çöp seni güçlendirir ama kirliliği artırır. Cam, metal, kağıt ve plastiği üzerinde taşırsın."],
+    "h_m4": ["Pollution also rises over time. At high levels, heat waves hurt you!", "Kirlilik zamanla da artar. Yüksek seviyede sıcak hava dalgaları canını yakar!"],
+    "h_m5": ["Take each trash type to its matching recycling bin. Fill every bin to unlock the boss gate.", "Her çöp türünü eşleşen geri dönüşüm kutusuna götür. Boss kapısını açmak için tüm kutuları doldur."],
+    "h_m6": ["Defeat the boss to move on. The game saves before and after every boss.", "İlerlemek için boss'u yen. Oyun her boss'tan önce ve sonra kayıt alır."],
+    "h_i_sapling": ["Sapling: a clean upgrade and less pollution", "Fidan: temiz upgrade ve daha az kirlilik"],
+    "h_i_trash": ["Trash: +1 damage, but more pollution", "Çöp: +1 hasar, ama daha fazla kirlilik"],
+    "h_i_bin": ["Recycling bins: match the color and the type", "Geri dönüşüm kutuları: rengi ve türü eşleştir"],
+    "h_i_gate": ["Boss gate: opens when every bin is full", "Boss kapısı: tüm kutular dolunca açılır"],
+    "h_i_up": ["Upgrades: speed, shield, double jump, extra health", "Upgrade'ler: hız, kalkan, çift zıplama, ekstra can"],
+    "h_t1": ["A red ! means the boss is about to attack. Get ready!", "Kırmızı ! boss'un saldıracağı anlamına gelir. Hazırlan!"],
+    "h_t2": ["Jump over ground waves and keep moving.", "Yer dalgalarının üstünden zıpla ve hareket etmeye devam et."],
+    "h_t3": ["Below half health the boss gets angry and faster.", "Canı yarıya inince boss öfkelenir ve hızlanır."],
+    "h_t4": ["Keep pollution under 50 for the good ending.", "İyi son için kirliliği 50'nin altında tut."],
+    "h_t5": ["Each character has a small perk. Pick the one that fits your style.", "Her karakterin küçük bir perk'ü var. Tarzına uyanı seç."],
+    "h_next": ["Next", "İleri"],
+    "h_start": ["Start!", "Başla!"],
+    "h_close": ["Close", "Kapat"],
+    "h_hint": ["A/D: pages    Enter: next    Esc: close", "A/D: sayfalar    Enter: ileri    Esc: kapat"],
+    "h_hint_tut": ["A/D: pages    Enter: next    Esc: skip", "A/D: sayfalar    Enter: ileri    Esc: atla"],
+    # ---------------- HUD / messages ----------------
+    "hud_hp": ["HP %d/%d    Temp: +%.1f°C", "CAN %d/%d    Sıcaklık: +%.1f°C"],
+    "hud_pollution": ["Pollution", "Kirlilik"],
+    "hud_hint": ["B: Inventory   J/X: Attack   Space/W: Jump   Esc: Pause   Take trash to the matching bin!", "B: Envanter   J/X: Saldır   Boşluk/W: Zıpla   Esc: Duraklat   Çöpü doğru kutuya götür!"],
+    "inv_title": ["INVENTORY  (B to close)", "ENVANTER  (kapatmak için B)"],
+    "inv_carry": ["Carrying: Glass %d | Metal %d | Paper %d | Plastic %d", "Taşınan: Cam %d | Metal %d | Kağıt %d | Plastik %d"],
+    "inv_shield": ["Shield: %d", "Kalkan: %d"],
+    "inv_speed": ["Speed: +%d", "Hız: +%d"],
+    "inv_damage": ["Damage: +%d", "Hasar: +%d"],
+    "inv_double": ["Double jump: %s", "Çift zıplama: %s"],
+    "inv_yes": ["YES", "VAR"],
+    "inv_no": ["no", "yok"],
+    "inv_saplings": ["Saplings planted: %d", "Dikilen fidan: %d"],
+    "inv_trash_total": ["Trash collected: %d", "Toplanan çöp: %d"],
+    "inv_pollution": ["Pollution: %d%%", "Kirlilik: %%%d"],
+    "inv_lock": ["Gate lock: %d/%d bins", "Kapı kilidi: %d/%d kutu"],
+    "inv_arena": ["Boss arena", "Boss arenası"],
+    "msg_intro": ["Collect trash, take it to the RIGHT bin, open the gate!", "Çöpleri topla, DOĞRU kutuya götür, kapıyı aç!"],
+    "msg_saved": ["Game saved", "Oyun kaydedildi"],
+    "msg_gate_locked": ["The gate is locked! Fill the recycling bins (%d/%d)", "Kapı kilitli! Geri dönüşüm kutularını doldur (%d/%d)"],
+    "msg_gate_open": ["LOCK OPEN! The gate awaits.", "KİLİT AÇILDI! Kapı seni bekliyor."],
+    "msg_bin": ["%s bin: %d/%d (pollution down)", "%s kutusu: %d/%d (kirlilik düştü)"],
+    "msg_died": ["You were defeated! Restarting...", "Yenildin! Yeniden başlıyor..."],
+    "msg_boss_down": ["BOSS DEFEATED!", "BOSS YENİLDİ!"],
+    "msg_enraged": ["THE BOSS IS ENRAGED! It attacks faster!", "BOSS ÖFKELENDİ! Daha hızlı saldırıyor!"],
+    "msg_heat": ["HEAT WAVE! Lower the pollution!", "SICAK HAVA DALGASI! Kirliliği düşür!"],
+    "msg_shield": ["The shield absorbed the hit!", "Kalkan hasarı emdi!"],
+    "msg_trash": ["%s trash! Damage +1, but pollution rose. Take it to the right bin!", "%s atığı! Hasar +1 ama kirlilik arttı. Doğru kutuya götür!"],
+    "msg_up_dj": ["Sapling planted: Double jump!", "Fidan dikildi: Çift zıplama!"],
+    "msg_up_speed": ["Sapling planted: Speed up!", "Fidan dikildi: Hız artışı!"],
+    "msg_up_shield": ["Sapling planted: Shield (absorbs 1 hit)!", "Fidan dikildi: Kalkan (1 hasarı emer)!"],
+    "msg_up_heal": ["Sapling planted: +1 health!", "Fidan dikildi: +1 can!"],
+    # ---------------- characters ----------------
+    "char_0_name": ["Green", "Yeşil"],
+    "char_1_name": ["Blue", "Mavi"],
+    "char_2_name": ["Yellow", "Sarı"],
+    "char_3_name": ["Purple", "Mor"],
+    "char_4_name": ["Pink", "Pembe"],
+    "char_0_perk": ["Nature Friend: starts with +1 health", "Doğa Dostu: +1 canla başlar"],
+    "char_1_perk": ["Windrunner: runs a little faster", "Rüzgâr: biraz daha hızlı koşar"],
+    "char_2_perk": ["Spark: faster attacks", "Işık: saldırı daha seri"],
+    "char_3_perk": ["Calm: pollution rises more slowly", "Sakin: kirlilik daha yavaş artar"],
+    "char_4_perk": ["Guardian: starts with a shield", "Koruyucu: kalkanla başlar"],
+    "cs_title": ["WHO ARE YOU?", "KİMSİN SEN?"],
+    "cs_sub": ["Choose your character", "Karakterini seç"],
+    "cs_hint": ["A/D or Left/Right: choose    Enter: confirm", "A/D veya Sol/Sağ: seç    Enter: onayla"],
+    # ---------------- cutscenes ----------------
+    "cs_skip": ["Esc: skip", "Esc: atla"],
+    "cs_next": ["Enter >", "Enter >"],
+    "who_narrator": ["NARRATOR", "ANLATICI"],
+    "who_gaia": ["PROF. GAIA", "PROF. GAIA"],
+    "intro_1": ["Once upon a time, our world was blue and green. Everything was in its place.", "Bir zamanlar dünyamız mavi ve yemyeşildi. Her şey yerli yerindeydi."],
+    "intro_2": ["But the factories never stopped and the trash kept piling up. Climate change and global warming began to scorch the planet.", "Ama fabrikalar durmadı, çöpler büyüdü. İklim değişikliği ve küresel ısınma dünyayı kasıp kavurmaya başladı."],
+    "intro_3": ["Cities fell into ruin, summers burn, and the air is poisonous...", "Şehirler harap oldu, yazlar yakıcı, hava zehirli..."],
+    "intro_4": ["The oceans are filling with plastic and the glaciers are melting. Time is running out.", "Okyanuslar plastikle doldu, buzullar eriyor. Zaman hızla tükeniyor."],
+    "intro_5": ["There is still hope! If we sort our waste and recycle it properly, we can save the world. We chose you for this mission!", "Hâlâ umut var! Atıkları doğru ayırıp geri dönüştürürsek dünyayı kurtarabiliriz. Bu görev için seni seçtik!"],
+    "good_1": ["You did it! The air is clean, the rivers are clear, and the wind turbines spin again.", "Başardın! Hava temizlendi, nehirler berraklaştı, rüzgâr türbinleri yeniden dönüyor."],
+    "good_2": ["Congratulations! We were right to choose you. The world can breathe again. You are a hero!", "Tebrikler! Seni seçmekte haklıymışız. Dünya yeniden nefes alıyor. Sen bir kahramansın!"],
+    "bad_1": ["We were too late... Pollution covers everything. The world is worse than ever.", "Çok geç kaldık... Kirlilik her yeri sardı. Dünya eskisinden de kötü durumda."],
+    "bad_2": ["Professor Gaia, who gave us this mission, could not bear to see this disaster. They are no longer with us...", "Bize bu görevi veren Prof. Gaia bu felaketi görmeye dayanamadı. Artık aramızda değil..."],
+    "end_clean": ["CLEAN ENDING", "TEMİZ SON"],
+    "end_dirty": ["DIRTY ENDING", "KİRLİ SON"],
+    "end_stats": ["%s\n\nTrash collected: %d\nRecycled: %d\nPollution: %d%%\n\nPress Enter to return to the menu", "%s\n\nToplanan atık: %d\nGeri dönüştürülen: %d\nKirlilik: %%%d\n\nMenüye dönmek için Enter'a bas"],
+}
+
+
+func _ready() -> void:
+    var cfg := ConfigFile.new()
+    if cfg.load(SETTINGS_PATH) == OK:
+        lang = str(cfg.get_value("game", "lang", "en"))
+        fullscreen = bool(cfg.get_value("game", "fullscreen", false))
+    _apply_fullscreen()
+
+
+func _save_settings() -> void:
+    var cfg := ConfigFile.new()
+    cfg.set_value("game", "lang", lang)
+    cfg.set_value("game", "fullscreen", fullscreen)
+    cfg.save(SETTINGS_PATH)
+
+
+func set_lang(l: String) -> void:
+    lang = l
+    _save_settings()
+    language_changed.emit()
+
+
+func set_fullscreen(v: bool) -> void:
+    fullscreen = v
+    _save_settings()
+    _apply_fullscreen()
+
+
+func _apply_fullscreen() -> void:
+    if fullscreen:
+        DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+    else:
+        DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+func t(key: String, args: Array = []) -> String:
+    if not S.has(key):
+        return key
+    var pair: Array = S[key]
+    var s: String = pair[1] if lang == "tr" else pair[0]
+    if args.size() > 0:
+        return s % args
+    return s

@@ -1,30 +1,25 @@
 extends Node
-# Global oyun durumu (autoload).
+# Global game state (autoload): stats, difficulty, save / load.
 
 signal changed
 signal item_collected(text: String)
 signal heat_wave
 
+const SAVE_PATH := "user://savegame.json"
+
 var trash_types := ["glass", "metal", "paper", "plastic"]
-var trash_names := {"glass": "Cam", "metal": "Metal", "paper": "Kağıt", "plastic": "Plastik"}
 var trash_colors := {
     "glass": Color(0.25, 0.75, 0.4), "metal": Color(0.62, 0.66, 0.72),
     "paper": Color(0.35, 0.6, 0.95), "plastic": Color(0.98, 0.82, 0.2)}
-
-# Karakterler: her birinin küçük bir perk'ü var
-var characters := [
-    {"name": "Yeşil", "color": Color(0.3, 0.8, 0.4), "perk": "Doğa Dostu: +1 can ile başlar"},
-    {"name": "Mavi", "color": Color(0.3, 0.55, 0.95), "perk": "Rüzgâr: biraz daha hızlı koşar"},
-    {"name": "Sarı", "color": Color(0.95, 0.8, 0.25), "perk": "Işık: saldırı daha seri"},
-    {"name": "Mor", "color": Color(0.65, 0.4, 0.9), "perk": "Sakin: kirlilik daha yavaş artar"},
-    {"name": "Pembe", "color": Color(0.95, 0.5, 0.7), "perk": "Koruyucu: kalkanla başlar"},
-]
+var char_colors := [
+    Color(0.3, 0.8, 0.4), Color(0.3, 0.55, 0.95), Color(0.95, 0.8, 0.25), Color(0.65, 0.4, 0.9), Color(0.95, 0.5, 0.7)]
 var char_idx := 0
 
+var difficulty := 1            # 0 easy, 1 normal, 2 hard
 var max_hp := 5
 var hp := 5
-var pollution := 0.0          # 0-100
-var pollution_rate := 0.25    # zamanla artış hızı
+var pollution := 0.0           # 0-100
+var pollution_rate := 0.25
 var attack_delay := 0.3
 var stock := {"glass": 0, "metal": 0, "paper": 0, "plastic": 0}
 var trash_cycle := 0
@@ -57,28 +52,66 @@ func _add_action(action_name: String, keys: Array) -> void:
         InputMap.action_add_event(action_name, e)
 
 
+# ---------------- difficulty ----------------
+func diff_pollution() -> float:
+    return [0.6, 1.0, 1.4][difficulty]
+
+
+func diff_enemy() -> float:
+    return [0.8, 1.0, 1.25][difficulty]
+
+
+func diff_boss() -> float:
+    return [0.75, 1.0, 1.3][difficulty]
+
+
+func diff_hp() -> int:
+    return [2, 0, -1][difficulty]
+
+
+func diff_heat() -> float:
+    return [95.0, 85.0, 70.0][difficulty]
+
+
+# ---------------- names ----------------
+func trash_name(type: String) -> String:
+    return Loc.t("trash_" + type)
+
+
+func char_name(i: int) -> String:
+    return Loc.t("char_%d_name" % i)
+
+
+func char_perk(i: int) -> String:
+    return Loc.t("char_%d_perk" % i)
+
+
 func player_color() -> Color:
-    return characters[char_idx]["color"]
+    return char_colors[char_idx]
 
 
 func apply_character() -> void:
+    max_hp = 5 + diff_hp()
+    attack_delay = 0.3
+    pollution_rate = 0.25
     match char_idx:
         0:
-            max_hp = 6
+            max_hp += 1
         1:
-            upgrades["speed"] = 1
+            upgrades["speed"] = int(upgrades["speed"]) + 1
         2:
             attack_delay = 0.2
         3:
             pollution_rate = 0.15
         4:
-            upgrades["shield"] = 1
+            upgrades["shield"] = int(upgrades["shield"]) + 1
     hp = max_hp
     changed.emit()
 
 
 func reset() -> void:
     char_idx = 0
+    difficulty = 1
     max_hp = 5
     hp = 5
     pollution = 0.0
@@ -121,22 +154,22 @@ func apply_item(kind: String, trash_type: String = "") -> void:
         match pick:
             "double_jump":
                 upgrades["double_jump"] = true
-                text = "Fidan dikildi: Çift zıplama!"
+                text = Loc.t("msg_up_dj")
             "speed":
                 upgrades["speed"] += 1
-                text = "Fidan dikildi: Hız artışı!"
+                text = Loc.t("msg_up_speed")
             "shield":
                 upgrades["shield"] += 1
-                text = "Fidan dikildi: Kalkan (1 hasarı emer)!"
+                text = Loc.t("msg_up_shield")
             "heal":
                 hp = mini(hp + 1, max_hp)
-                text = "Fidan dikildi: +1 can!"
+                text = Loc.t("msg_up_heal")
     else:
         trash_total += 1
         stock[trash_type] += 1
         upgrades["damage"] += 1
         add_pollution(12.0)
-        text = "%s atığı! Hasar +1 ama kirlilik arttı. Doğru kutuya götür!" % trash_names[trash_type]
+        text = Loc.t("msg_trash", [trash_name(trash_type)])
     changed.emit()
     item_collected.emit(text)
 
@@ -150,8 +183,8 @@ func deposit(trash_type: String, n: int) -> void:
 func _process(delta: float) -> void:
     if not running:
         return
-    pollution = minf(100.0, pollution + pollution_rate * delta)
-    if pollution >= 85.0:
+    pollution = minf(100.0, pollution + pollution_rate * diff_pollution() * delta)
+    if pollution >= diff_heat():
         heat_timer += delta
         if heat_timer >= 6.0:
             heat_timer = 0.0
@@ -162,3 +195,56 @@ func _process(delta: float) -> void:
 
 func temperature() -> float:
     return 1.2 + pollution * 0.03
+
+
+# ---------------- save / load ----------------
+func has_save() -> bool:
+    return FileAccess.file_exists(SAVE_PATH)
+
+
+func save_game(level_idx: int, arena: bool) -> void:
+    var d := {
+        "v": 1, "level": level_idx, "arena": arena, "difficulty": difficulty, "char": char_idx,
+        "max_hp": max_hp, "pollution": pollution, "pollution_rate": pollution_rate, "attack_delay": attack_delay,
+        "stock": stock, "trash_cycle": trash_cycle, "recycled_total": recycled_total,
+        "trash_total": trash_total, "delivered_total": delivered_total, "upgrades": upgrades}
+    var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+    if f:
+        f.store_string(JSON.stringify(d))
+
+
+func load_game() -> Dictionary:
+    if not has_save():
+        return {}
+    var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+    if f == null:
+        return {}
+    var parsed = JSON.parse_string(f.get_as_text())
+    if typeof(parsed) != TYPE_DICTIONARY:
+        return {}
+    var d: Dictionary = parsed
+    reset()
+    difficulty = int(d.get("difficulty", 1))
+    char_idx = int(d.get("char", 0))
+    max_hp = int(d.get("max_hp", 5))
+    pollution = float(d.get("pollution", 0.0))
+    pollution_rate = float(d.get("pollution_rate", 0.25))
+    attack_delay = float(d.get("attack_delay", 0.3))
+    trash_cycle = int(d.get("trash_cycle", 0))
+    recycled_total = int(d.get("recycled_total", 0))
+    trash_total = int(d.get("trash_total", 0))
+    delivered_total = int(d.get("delivered_total", 0))
+    var st: Dictionary = d.get("stock", {})
+    for k in trash_types:
+        stock[k] = int(st.get(k, 0))
+    var up: Dictionary = d.get("upgrades", {})
+    upgrades = {"double_jump": bool(up.get("double_jump", false)), "speed": int(up.get("speed", 0)),
+        "damage": int(up.get("damage", 0)), "shield": int(up.get("shield", 0))}
+    hp = max_hp
+    changed.emit()
+    return {"level": int(d.get("level", 0)), "arena": bool(d.get("arena", false))}
+
+
+func delete_save() -> void:
+    if has_save():
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))

@@ -41,7 +41,7 @@ func _physics_process(_delta: float) -> void:
                 have += n
                 GameState.deposit(type, n)
                 queue_redraw()
-                GameState.item_collected.emit("%s kutusu: %d/%d (kirlilik düştü)" % [GameState.trash_names[type], have, need])
+                GameState.item_collected.emit(Loc.t("msg_bin", [GameState.trash_name(type), have, need]))
                 if have >= need:
                     done = true
                     if sprite:
@@ -62,6 +62,6 @@ func _draw() -> void:
     draw_rect(Rect2(-24, -46, 48, 5), body.darkened(0.2))
     draw_arc(Vector2(0, -26), 10.0, 0.3, 4.4, 14, Color.WHITE, 3.0)
     draw_colored_polygon(PackedVector2Array([Vector2(7, -37), Vector2(14, -28), Vector2(3, -28)]), Color.WHITE)
-    draw_string(f, Vector2(-40, -70), GameState.trash_names[type], HORIZONTAL_ALIGNMENT_CENTER, 80.0, 14, Color.WHITE)
-    var label := "TAMAM" if done else "%d/%d" % [have, need]
+    draw_string(f, Vector2(-40, -70), GameState.trash_name(type), HORIZONTAL_ALIGNMENT_CENTER, 80.0, 14, Color.WHITE)
+    var label := Loc.t("done") if done else "%d/%d" % [have, need]
     draw_string(f, Vector2(-40, -8), label, HORIZONTAL_ALIGNMENT_CENTER, 80.0, 16, Color.WHITE)

@@ -36,7 +36,8 @@ func _ready() -> void:
     add_to_group("boss")
     collision_layer = 2
     collision_mask = 1
-    max_hp = 22 if boss_id == "plastic" else 28
+    var base_hp := 22 if boss_id == "plastic" else 28
+    max_hp = int(round(float(base_hp) * GameState.diff_boss()))
     hp = max_hp
     var cs := CollisionShape2D.new()
     var r := RectangleShape2D.new()
@@ -188,7 +189,7 @@ func die() -> void:
     hp -= mini(1 + int(GameState.upgrades["damage"]), ceili(float(max_hp) / MIN_HITS))
     if not phase2 and hp <= max_hp / 2.0 and hp > 0:
         phase2 = true
-        GameState.item_collected.emit("BOSS ÖFKELENDİ! Daha hızlı saldırıyor!")
+        GameState.item_collected.emit(Loc.t("msg_enraged"))
     if hits % 3 == 0:
         var it := ItemS.new()
         if randf() < 0.5:

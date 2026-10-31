@@ -10,12 +10,13 @@ config_version=5
 
 [application]
 
-config/name="COP31"
+config/name="Save Gaia"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7")
 
 [autoload]
 
+Loc="*res://scripts/loc.gd"
 GameState="*res://scripts/game_state.gd"
 
 [display]

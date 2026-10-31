@@ -108,7 +108,7 @@ func hurt(from_x: float) -> void:
     if int(GameState.upgrades["shield"]) > 0:
         GameState.upgrades["shield"] -= 1
         GameState.changed.emit()
-        GameState.item_collected.emit("Kalkan hasarı emdi!")
+        GameState.item_collected.emit(Loc.t("msg_shield"))
         return
     _lose_hp()
 
@@ -136,5 +136,5 @@ func _on_heat() -> void:
     if _dead or invuln > 0.0:
         return
     invuln = 1.0
-    GameState.item_collected.emit("SICAK HAVA DALGASI! Kirliliği düşür!")
+    GameState.item_collected.emit(Loc.t("msg_heat"))
     _lose_hp()

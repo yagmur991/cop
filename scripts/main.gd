@@ -11,6 +11,8 @@ const GateS = preload("res://scripts/gate.gd")
 const BackgroundS = preload("res://scripts/background.gd")
 const CutsceneS = preload("res://scripts/cutscene.gd")
 const CharSelectS = preload("res://scripts/char_select.gd")
+const MenuS = preload("res://scripts/menu.gd")
+const HowToS = preload("res://scripts/howto.gd")
 
 const ARENA := [
     Rect2(0, 650, 1280, 70), Rect2(140, 530, 200, 20), Rect2(940, 530, 200, 20), Rect2(540, 410, 200, 20)]
@@ -49,11 +51,14 @@ var levels := [
 
 var level_idx := 0
 var in_arena := false
+var playing := false
 var level_root: Node2D
 var hud: CanvasLayer
 var bg_layer: CanvasLayer
 var overlay: CanvasLayer
+var pause_layer: CanvasLayer
 var transitioning := false
+var pause_block := 0.0
 var cp_pollution := 0.0
 var cp_stock := {}
 
@@ -67,33 +72,116 @@ func _ready() -> void:
     hud = HudS.new()
     hud.hide()
     add_child(hud)
-    var cs := CutsceneS.new()
-    cs.slides = CutsceneS.intro_slides()
-    _show_overlay(cs, _on_intro_done)
+    _show_menu()
 
 
-func _show_overlay(node: Node, cb: Callable) -> void:
+# ---------------- flow: menu -> difficulty -> intro -> character -> tutorial -> play -> ending ----------------
+func _put_overlay(node: Node) -> void:
     overlay = CanvasLayer.new()
     overlay.layer = 40
     overlay.add_child(node)
     add_child(overlay)
-    node.finished.connect(cb)
+
+
+func _clear_overlay() -> void:
+    if overlay:
+        overlay.queue_free()
+        overlay = null
+
+
+func _clear_pause() -> void:
+    if pause_layer:
+        pause_layer.queue_free()
+        pause_layer = null
+
+
+func _show_menu() -> void:
+    playing = false
+    get_tree().paused = false
+    GameState.running = false
+    _clear_pause()
+    _clear_overlay()
+    if level_root:
+        level_root.queue_free()
+        level_root = null
+    hud.hide()
+    bg_layer.hide()
+    var m := MenuS.new()
+    m.new_game.connect(_on_new_game)
+    m.continue_game.connect(_on_continue)
+    _put_overlay(m)
+
+
+func _on_new_game(diff: int) -> void:
+    _clear_overlay()
+    GameState.reset()
+    GameState.difficulty = diff
+    var cs := CutsceneS.new()
+    cs.slides = CutsceneS.intro_slides()
+    cs.finished.connect(_on_intro_done)
+    _put_overlay(cs)
 
 
 func _on_intro_done() -> void:
-    overlay.queue_free()
-    _show_overlay(CharSelectS.new(), _on_char_done)
+    _clear_overlay()
+    var cs := CharSelectS.new()
+    cs.finished.connect(_on_char_done)
+    _put_overlay(cs)
 
 
 func _on_char_done() -> void:
-    overlay.queue_free()
+    _clear_overlay()
     GameState.apply_character()
+    var h := HowToS.new()
+    h.tutorial_mode = true
+    h.finished.connect(_on_tutorial_done)
+    _put_overlay(h)
+
+
+func _on_tutorial_done() -> void:
+    _clear_overlay()
+    _begin_play(0, false)
+
+
+func _on_continue() -> void:
+    var info := GameState.load_game()
+    if info.is_empty():
+        return
+    _clear_overlay()
+    _begin_play(int(info["level"]), bool(info["arena"]))
+
+
+func _begin_play(i: int, arena: bool) -> void:
+    playing = true
+    pause_block = 0.5
     hud.show()
     bg_layer.show()
-    start_level(0, false)
-    GameState.item_collected.emit("Çöpleri topla, DOĞRU türdeki kutuya götür, kapıyı aç!")
+    start_level(i, arena)
+    if i == 0 and not arena:
+        GameState.item_collected.emit(Loc.t("msg_intro"))
 
 
+# ---------------- pause ----------------
+func _open_pause() -> void:
+    get_tree().paused = true
+    pause_layer = CanvasLayer.new()
+    pause_layer.layer = 50
+    pause_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+    var m := MenuS.new()
+    m.is_pause = true
+    m.resume.connect(_close_pause)
+    m.quit_to_menu.connect(_show_menu)
+    pause_layer.add_child(m)
+    add_child(pause_layer)
+
+
+func _close_pause() -> void:
+    get_tree().paused = false
+    pause_block = 0.3
+    _clear_pause()
+
+
+# ---------------- levels ----------------
 func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     if level_root:
         level_root.process_mode = Node.PROCESS_MODE_DISABLED
@@ -108,6 +196,9 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     else:
         cp_pollution = GameState.pollution
         cp_stock = GameState.stock.duplicate()
+        GameState.save_game(i, arena)   # auto-save: every level start and before every boss
+        if arena or i > 0:
+            GameState.item_collected.emit(Loc.t("msg_saved"))
     GameState.running = not arena
     GameState.heat_timer = 0.0
     GameState.bins_done = 0
@@ -144,6 +235,7 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
             ch.kind = c[1]
             level_root.add_child(ch)
         var gate := GateS.new()
+        gate.boss_id = d["boss"]
         gate.position = Vector2(d["end_x"], 450)
         gate.total = d["bins"].size()
         gate.entered.connect(_on_gate_entered)
@@ -190,7 +282,7 @@ func _on_gate_entered() -> void:
 
 
 func _on_boss_defeated() -> void:
-    GameState.item_collected.emit("BOSS YENİLDİ!")
+    GameState.item_collected.emit(Loc.t("msg_boss_down"))
     call_deferred("_after_boss")
 
 
@@ -198,22 +290,28 @@ func _after_boss() -> void:
     if level_idx + 1 >= levels.size():
         _show_ending()
     else:
-        start_level(level_idx + 1, false)
+        start_level(level_idx + 1, false)   # auto-save happens here (after the boss)
 
 
 func _on_player_died() -> void:
-    GameState.item_collected.emit("Yenildin! Yeniden başlıyor...")
+    GameState.item_collected.emit(Loc.t("msg_died"))
     call_deferred("start_level", level_idx, in_arena, true)
 
 
-func _process(_delta: float) -> void:
-    # Ortam kirlendikçe gökyüzü soluk/sarımsı olur (parlaklık düşmez)
+func _process(delta: float) -> void:
+    # Sky turns sickly yellowish with pollution (brightness stays the same)
     var p := GameState.pollution / 100.0
     RenderingServer.set_default_clear_color(Color(0.55, 0.8, 0.95).lerp(Color(0.76, 0.7, 0.48), p))
+    pause_block = maxf(0.0, pause_block - delta)
+    if playing and pause_layer == null and not get_tree().paused and pause_block <= 0.0 and Input.is_action_just_pressed("ui_cancel"):
+        _open_pause()
 
 
+# ---------------- ending ----------------
 func _show_ending() -> void:
+    playing = false
     GameState.running = false
+    GameState.delete_save()
     if level_root:
         level_root.queue_free()
         level_root = null
@@ -221,14 +319,15 @@ func _show_ending() -> void:
     bg_layer.hide()
     var clean := GameState.pollution < 50.0
     var slides: Array = CutsceneS.good_slides() if clean else CutsceneS.bad_slides()
-    var title := "TEMİZ SON" if clean else "KİRLİ SON"
-    slides.append({"scene": "stats", "who": "", "text": "%s\n\nToplanan atık: %d\nGeri dönüştürülen: %d\nKirlilik: %%%d\n\nYeniden oynamak için Enter" % [
-        title, GameState.trash_total, GameState.delivered_total, int(GameState.pollution)]})
+    var title := Loc.t("end_clean") if clean else Loc.t("end_dirty")
+    slides.append({"scene": "stats", "who": "", "raw": true, "text": Loc.t("end_stats", [title, GameState.trash_total, GameState.delivered_total, int(GameState.pollution)])})
     var cs := CutsceneS.new()
     cs.slides = slides
-    _show_overlay(cs, _on_ending_done)
+    cs.finished.connect(_on_ending_done)
+    _put_overlay(cs)
 
 
 func _on_ending_done() -> void:
+    _clear_overlay()
     GameState.reset()
-    get_tree().reload_current_scene()
+    _show_menu()
