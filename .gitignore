@@ -1,0 +1,8 @@
+# Godot
+.godot/
+*.translation
+
+# Export çıktıları
+*.exe
+*.pck
+*.zip
