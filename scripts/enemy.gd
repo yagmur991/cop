@@ -54,7 +54,7 @@ func die() -> void:
         return
     dead = true
     var it := ItemS.new()
-    it.kind = "recycle" if randf() < 0.5 else "trash"
+    it.kind = "trash"
     it.position = position + Vector2(0, -10)
     get_parent().call_deferred("add_child", it)
     queue_free()
