@@ -27,6 +27,7 @@ func _ready() -> void:
     _add_action("down", [KEY_S, KEY_DOWN])
     _add_action("jump", [KEY_SPACE, KEY_W, KEY_UP])
     _add_action("attack", [KEY_J, KEY_X, KEY_Z])
+    _add_action("inventory", [KEY_B])
 
 
 func _add_action(action_name: String, keys: Array) -> void:
