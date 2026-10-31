@@ -82,7 +82,7 @@ func _physics_process(delta: float) -> void:
         velocity.y *= 0.5
 
     if Input.is_action_just_pressed("attack") and attack_cd <= 0.0:
-        attack_cd = 0.3
+        attack_cd = GameState.attack_delay
         attack_vis = 0.15
         hitbox.monitoring = true
 
@@ -122,8 +122,9 @@ func _lose_hp() -> void:
 
 
 func _draw() -> void:
-    draw_rect(Rect2(-14, -22, 28, 44), Color(0.2, 0.7, 0.6))
-    draw_rect(Rect2(-14, -22, 28, 10), Color(0.15, 0.55, 0.5))
+    var col: Color = GameState.player_color()
+    draw_rect(Rect2(-14, -22, 28, 44), col)
+    draw_rect(Rect2(-14, -22, 28, 10), col.darkened(0.2))
     draw_rect(Rect2(facing * 6 - 3, -16, 6, 6), Color.WHITE)
     draw_rect(Rect2(-5, 0, 10, 10), Color(0.2, 0.5, 0.9))  # geri dönüşüm rozeti
     if attack_vis > 0.0:

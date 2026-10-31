@@ -42,6 +42,8 @@ func open() -> void:
         it.kind = kind
         if kind == "recycle":
             it.source = self
+        else:
+            it.trash_type = GameState.next_trash_type()
         it.position = position + Vector2((i - (n - 1) / 2.0) * 32.0, -48)
         get_parent().call_deferred("add_child", it)
 

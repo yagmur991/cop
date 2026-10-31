@@ -35,7 +35,7 @@ func _ready() -> void:
     add_child(msg)
 
     var hint := _label(Vector2(20, 686), 15)
-    hint.text = "B: Envanter   J/X: Saldır   Boşluk/W: Zıpla"
+    hint.text = "B: Envanter   J/X: Saldır   Boşluk/W: Zıpla   Çöpü doğru türdeki kutuya götür!"
     add_child(hint)
 
     _build_inventory()
@@ -112,11 +112,12 @@ func _process(delta: float) -> void:
 
 func _update_inventory() -> void:
     var u: Dictionary = GameState.upgrades
+    var st: Dictionary = GameState.stock
     var lock_txt := "Boss arenası"
     if GameState.bins_total > 0:
         lock_txt = "%d/%d kutu" % [GameState.bins_done, GameState.bins_total]
     inv_label.text = "ENVANTER  (kapatmak için B)\n\n" \
-        + "Taşınan çöp: %d\n" % GameState.trash_stock \
+        + "Taşınan çöp: Cam %d | Metal %d | Kağıt %d | Plastik %d\n" % [st["glass"], st["metal"], st["paper"], st["plastic"]] \
         + "Kalkan: %d\n" % u["shield"] \
         + "Hız: +%d\n" % u["speed"] \
         + "Hasar: +%d\n" % u["damage"] \

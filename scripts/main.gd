@@ -8,11 +8,14 @@ const HudS = preload("res://scripts/hud.gd")
 const BossS = preload("res://scripts/boss.gd")
 const BinS = preload("res://scripts/recycle_bin.gd")
 const GateS = preload("res://scripts/gate.gd")
+const BackgroundS = preload("res://scripts/background.gd")
+const CutsceneS = preload("res://scripts/cutscene.gd")
+const CharSelectS = preload("res://scripts/char_select.gd")
 
 const ARENA := [
     Rect2(0, 650, 1280, 70), Rect2(140, 530, 200, 20), Rect2(940, 530, 200, 20), Rect2(540, 410, 200, 20)]
 
-# Level verisi: platformlar (x, y, w, h), düşmanlar (x, y), sandıklar [pos, tür]
+# Level verisi: platformlar, düşmanlar, sandıklar [pos, tür], kutular [pos, çöp türü, ihtiyaç]
 var levels := [
     {
         "end_x": 4000.0, "boss": "plastic",
@@ -23,9 +26,10 @@ var levels := [
             Rect2(3050, 540, 200, 20), Rect2(3300, 450, 200, 20)],
         "enemies": [Vector2(550, 630), Vector2(1300, 630), Vector2(1480, 430), Vector2(2100, 630), Vector2(2350, 410),
             Vector2(2600, 630), Vector2(3150, 520), Vector2(3500, 630), Vector2(3700, 630)],
-        "chests": [[Vector2(430, 540), "recycle"], [Vector2(1250, 540), "trash"], [Vector2(2330, 430), "recycle"],
+        "chests": [[Vector2(430, 540), "recycle"], [Vector2(1250, 540), "trash"], [Vector2(2330, 430), "trash"],
             [Vector2(2600, 650), "trash"], [Vector2(3400, 450), "recycle"]],
-        "bins": [[Vector2(2000, 650), 2], [Vector2(3300, 650), 2], [Vector2(3800, 650), 2]],
+        "bins": [[Vector2(2000, 650), "glass", 2], [Vector2(2300, 650), "metal", 2],
+            [Vector2(3300, 650), "paper", 2], [Vector2(3800, 650), "plastic", 2]],
     },
     {
         "end_x": 4000.0, "boss": "factory",
@@ -38,26 +42,56 @@ var levels := [
             Vector2(2500, 630), Vector2(2840, 430), Vector2(3090, 520), Vector2(3400, 630), Vector2(3750, 630)],
         "chests": [[Vector2(680, 550), "recycle"], [Vector2(950, 500), "trash"], [Vector2(1250, 480), "recycle"],
             [Vector2(2180, 430), "trash"], [Vector2(2600, 540), "recycle"], [Vector2(3400, 450), "trash"]],
-        "bins": [[Vector2(1500, 650), 2], [Vector2(2800, 650), 2], [Vector2(3750, 650), 3]],
+        "bins": [[Vector2(1500, 650), "glass", 2], [Vector2(1900, 650), "metal", 2],
+            [Vector2(3000, 650), "paper", 2], [Vector2(3750, 650), "plastic", 2]],
     },
 ]
 
 var level_idx := 0
 var in_arena := false
 var level_root: Node2D
-var canvas_mod: CanvasModulate
 var hud: CanvasLayer
+var bg_layer: CanvasLayer
+var overlay: CanvasLayer
 var transitioning := false
 var cp_pollution := 0.0
-var cp_trash := 0
-var ending := false
+var cp_stock := {}
 
 
 func _ready() -> void:
+    bg_layer = CanvasLayer.new()
+    bg_layer.layer = -1
+    bg_layer.add_child(BackgroundS.new())
+    bg_layer.hide()
+    add_child(bg_layer)
     hud = HudS.new()
+    hud.hide()
     add_child(hud)
+    var cs := CutsceneS.new()
+    cs.slides = CutsceneS.intro_slides()
+    _show_overlay(cs, _on_intro_done)
+
+
+func _show_overlay(node: Node, cb: Callable) -> void:
+    overlay = CanvasLayer.new()
+    overlay.layer = 40
+    overlay.add_child(node)
+    add_child(overlay)
+    node.finished.connect(cb)
+
+
+func _on_intro_done() -> void:
+    overlay.queue_free()
+    _show_overlay(CharSelectS.new(), _on_char_done)
+
+
+func _on_char_done() -> void:
+    overlay.queue_free()
+    GameState.apply_character()
+    hud.show()
+    bg_layer.show()
     start_level(0, false)
-    GameState.item_collected.emit("COP31: Çöpleri yen, sandıkları aç, seçimini yap!")
+    GameState.item_collected.emit("Çöpleri topla, DOĞRU türdeki kutuya götür, kapıyı aç!")
 
 
 func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
@@ -70,10 +104,10 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     transitioning = false
     if restart:
         GameState.pollution = cp_pollution
-        GameState.trash_stock = cp_trash
+        GameState.stock = cp_stock.duplicate()
     else:
         cp_pollution = GameState.pollution
-        cp_trash = GameState.trash_stock
+        cp_stock = GameState.stock.duplicate()
     GameState.running = not arena
     GameState.heat_timer = 0.0
     GameState.bins_done = 0
@@ -81,8 +115,6 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     var d: Dictionary = levels[i]
     level_root = Node2D.new()
     add_child(level_root)
-    canvas_mod = CanvasModulate.new()
-    level_root.add_child(canvas_mod)
 
     var right_limit := 1280
     var spawn := Vector2(100, 560)
@@ -120,7 +152,8 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
         for bd in d["bins"]:
             var bn := BinS.new()
             bn.position = bd[0]
-            bn.need = bd[1]
+            bn.type = bd[1]
+            bn.need = bd[2]
             bn.activated.connect(gate.bin_done)
             level_root.add_child(bn)
         right_limit = int(d["end_x"]) + 240
@@ -174,41 +207,28 @@ func _on_player_died() -> void:
 
 
 func _process(_delta: float) -> void:
+    # Ortam kirlendikçe gökyüzü soluk/sarımsı olur (parlaklık düşmez)
     var p := GameState.pollution / 100.0
-    RenderingServer.set_default_clear_color(Color(0.55, 0.8, 0.95).lerp(Color(0.5, 0.26, 0.2), p))
-    if canvas_mod:
-        canvas_mod.color = Color.WHITE.lerp(Color(0.65, 0.58, 0.5), p)
-    if ending and Input.is_action_just_pressed("ui_accept"):
-        GameState.reset()
-        get_tree().reload_current_scene()
+    RenderingServer.set_default_clear_color(Color(0.55, 0.8, 0.95).lerp(Color(0.76, 0.7, 0.48), p))
 
 
 func _show_ending() -> void:
-    ending = true
     GameState.running = false
-    level_root.queue_free()
+    if level_root:
+        level_root.queue_free()
+        level_root = null
     hud.hide()
-    var cl := CanvasLayer.new()
-    cl.layer = 30
-    var bg := ColorRect.new()
-    bg.color = Color.BLACK
-    bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-    cl.add_child(bg)
-    var l := Label.new()
-    l.set_anchors_preset(Control.PRESET_FULL_RECT)
-    l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    l.add_theme_font_size_override("font_size", 28)
+    bg_layer.hide()
     var clean := GameState.pollution < 50.0
+    var slides: Array = CutsceneS.good_slides() if clean else CutsceneS.bad_slides()
     var title := "TEMİZ SON" if clean else "KİRLİ SON"
-    var story := "Doğa nefes aldı. Seçimlerin dünyayı iyileştirdi." if clean else "Güçlü oldun ama dünya kirlendi. Başka bir yol vardı..."
-    # NOT: Sunumdan önce bu bilgilerin kaynaklarını kontrol edin.
-    var facts := [
-        "Biliyor muydun? Alüminyum kutuyu geri dönüştürmek, sıfırdan üretime göre yaklaşık %95 daha az enerji harcar.",
-        "Biliyor muydun? Cam, kalite kaybı olmadan tekrar tekrar geri dönüştürülebilir.",
-        "Biliyor muydun? Plastik atıkların büyük bir kısmı doğada yüzyıllarca kalır."]
-    l.text = "%s\n\n%s\n\nToplanan geri dönüşüm itemi: %d\nToplanan çöp itemi: %d\nKirlilik: %%%d\n\n%s\n\nYeniden oynamak için Enter" % [
-        title, story, GameState.recycled_total, GameState.trash_total, int(GameState.pollution), facts.pick_random()]
-    cl.add_child(l)
-    add_child(cl)
+    slides.append({"scene": "stats", "who": "", "text": "%s\n\nToplanan atık: %d\nGeri dönüştürülen: %d\nKirlilik: %%%d\n\nYeniden oynamak için Enter" % [
+        title, GameState.trash_total, GameState.delivered_total, int(GameState.pollution)]})
+    var cs := CutsceneS.new()
+    cs.slides = slides
+    _show_overlay(cs, _on_ending_done)
+
+
+func _on_ending_done() -> void:
+    GameState.reset()
+    get_tree().reload_current_scene()

@@ -4,7 +4,7 @@ extends Area2D
 var kind := "recycle"
 var t := 0.0
 var source: Node = null   # chest that dropped this sapling (optional)
-var variant := randi() % 2   # trash look: 0 = crushed cola can, 1 = crumpled paper
+var trash_type := "glass"   # glass / metal / paper / plastic
 
 
 func _ready() -> void:
@@ -20,7 +20,7 @@ func _ready() -> void:
 
 func _on_body(body: Node) -> void:
     if body.is_in_group("player"):
-        GameState.apply_item(kind)
+        GameState.apply_item(kind, trash_type)
         if is_instance_valid(source) and source.has_method("item_taken"):
             source.item_taken()
         queue_free()
@@ -55,11 +55,30 @@ func _draw() -> void:
         _leaf(Vector2(0, 1 + bob), -PI * 0.15, 13.0, 5.0, Color(0.3, 0.85, 0.4))
         _leaf(Vector2(0, -2 + bob), -PI * 0.5, 12.0, 4.0, Color(0.4, 0.95, 0.5))
         return
-    draw_circle(Vector2(0, bob), 16.0, Color(1.0, 0.9, 0.7, 0.18))
-    if variant == 0:
-        _draw_can(bob)
+    var col: Color = GameState.trash_colors[trash_type]
+    draw_circle(Vector2(0, bob), 18.0, Color(col.r, col.g, col.b, 0.28))
+    match trash_type:
+        "metal":
+            _draw_can(bob)
+        "paper":
+            _draw_paper(bob)
+        "glass":
+            _draw_bottle(bob, col, false)
+        _:
+            _draw_bottle(bob, col, true)
+
+
+func _draw_bottle(bob: float, col: Color, plastic: bool) -> void:
+    var b := Vector2(0, bob)
+    if plastic:
+        draw_rect(Rect2(b + Vector2(-7, -8), Vector2(14, 20)), col)
+        draw_rect(Rect2(b + Vector2(-4, -14), Vector2(8, 7)), Color(0.9, 0.9, 0.95))
+        draw_rect(Rect2(b + Vector2(-5, -15), Vector2(10, 3)), Color(0.2, 0.4, 0.9))
+        draw_rect(Rect2(b + Vector2(-7, 0), Vector2(14, 3)), col.darkened(0.25))
     else:
-        _draw_paper(bob)
+        draw_rect(Rect2(b + Vector2(-7, -6), Vector2(14, 18)), col)
+        draw_rect(Rect2(b + Vector2(-3, -16), Vector2(6, 11)), col)
+        draw_rect(Rect2(b + Vector2(-4, -4), Vector2(3, 12)), Color(1, 1, 1, 0.45))
 
 
 func _draw_can(bob: float) -> void:

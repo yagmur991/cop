@@ -54,7 +54,11 @@ func die() -> void:
         return
     dead = true
     var it := ItemS.new()
-    it.kind = "trash"
+    if randf() < 0.6:
+        it.kind = "trash"
+        it.trash_type = GameState.next_trash_type()
+    else:
+        it.kind = "recycle"
     it.position = position + Vector2(0, -10)
     get_parent().call_deferred("add_child", it)
     queue_free()
