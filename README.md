@@ -12,3 +12,15 @@ Platformer about collecting, sorting and recycling waste to save the planet.
 - Recycling bin sprites: `assets/<Type>RecycleBin-Sheet.png` (Plastic included; Glass, Metal, Paper are picked up automatically when added).
 - Everything else is drawn in code; replace `_draw()` with `Sprite2D` when art is ready.
 - Translations live in `scripts/loc.gd` (English / Turkish).
+
+## Levels
+
+| # | Card | Theme | Boss |
+|---|------|-------|------|
+| 1 | Save the Sea | ocean + plastic pollution | Plastic boss |
+| 2 | Save the Air | factories, smoke, carbon | Factory boss |
+| 3 | Save the Land | farmland vs. landfill | Landfill Titan (final, 3 phases) |
+
+Each level starts with a title card (`scripts/level_card.gd`). Backgrounds are per theme (`scripts/background.gd`),
+platform and gate looks follow the theme / boss. Landfill Titan hazards live in `scripts/hazard.gd`.
+

@@ -13,6 +13,7 @@ const CutsceneS = preload("res://scripts/cutscene.gd")
 const CharSelectS = preload("res://scripts/char_select.gd")
 const MenuS = preload("res://scripts/menu.gd")
 const HowToS = preload("res://scripts/howto.gd")
+const LevelCardS = preload("res://scripts/level_card.gd")
 
 const ARENA := [
     Rect2(0, 650, 1280, 70), Rect2(140, 530, 200, 20), Rect2(940, 530, 200, 20), Rect2(540, 410, 200, 20)]
@@ -20,7 +21,7 @@ const ARENA := [
 # Level verisi: platformlar, düşmanlar, sandıklar [pos, tür], kutular [pos, çöp türü, ihtiyaç]
 var levels := [
     {
-        "end_x": 4000.0, "boss": "plastic",
+        "end_x": 4000.0, "boss": "plastic", "theme": "sea",
         "platforms": [
             Rect2(0, 650, 900, 70), Rect2(1050, 650, 700, 70), Rect2(1900, 650, 800, 70), Rect2(2850, 650, 1350, 70),
             Rect2(350, 540, 160, 20), Rect2(600, 450, 160, 20), Rect2(1150, 540, 200, 20), Rect2(1400, 450, 200, 20),
@@ -34,7 +35,7 @@ var levels := [
             [Vector2(3300, 650), "paper", 2], [Vector2(3800, 650), "plastic", 2]],
     },
     {
-        "end_x": 4000.0, "boss": "factory",
+        "end_x": 4000.0, "boss": "factory", "theme": "air",
         "platforms": [
             Rect2(0, 650, 600, 70), Rect2(750, 650, 400, 70), Rect2(1300, 650, 300, 70), Rect2(1750, 650, 500, 70), Rect2(2400, 650, 1800, 70),
             Rect2(620, 550, 130, 20), Rect2(900, 500, 140, 20), Rect2(1200, 480, 140, 20), Rect2(1500, 540, 160, 20),
@@ -46,6 +47,33 @@ var levels := [
             [Vector2(2180, 430), "trash"], [Vector2(2600, 540), "recycle"], [Vector2(3400, 450), "trash"]],
         "bins": [[Vector2(1500, 650), "glass", 2], [Vector2(1900, 650), "metal", 2],
             [Vector2(3000, 650), "paper", 2], [Vector2(3750, 650), "plastic", 2]],
+    },
+    {
+        "end_x": 4600.0, "boss": "land", "theme": "land",
+        "platforms": [
+            Rect2(0, 650, 700, 70), Rect2(870, 650, 380, 70), Rect2(1420, 650, 330, 70), Rect2(1920, 650, 300, 70),
+            Rect2(2390, 650, 500, 70), Rect2(3070, 650, 300, 70), Rect2(3540, 650, 1260, 70),
+            Rect2(300, 540, 160, 20), Rect2(520, 450, 160, 20),
+            Rect2(980, 540, 160, 20), Rect2(1130, 450, 160, 20),
+            Rect2(1480, 540, 160, 20), Rect2(1650, 450, 160, 20), Rect2(1830, 360, 160, 20),
+            Rect2(2000, 540, 160, 20), Rect2(2170, 450, 160, 20),
+            Rect2(2600, 540, 180, 20), Rect2(2800, 450, 180, 20), Rect2(2990, 540, 120, 20), Rect2(3150, 450, 160, 20),
+            Rect2(3640, 540, 180, 20), Rect2(3860, 450, 180, 20), Rect2(4080, 360, 180, 20),
+            Rect2(4300, 450, 180, 20), Rect2(4500, 540, 160, 20),
+        ],
+        "enemies": [
+            Vector2(450, 630), Vector2(600, 430), Vector2(1060, 630), Vector2(1585, 630),
+            Vector2(2070, 630), Vector2(2640, 630), Vector2(2890, 430), Vector2(3220, 630),
+            Vector2(3900, 630), Vector2(3950, 430), Vector2(4390, 430), Vector2(4400, 630),
+        ],
+        "chests": [
+            [Vector2(380, 540), "recycle"], [Vector2(1060, 540), "trash"], [Vector2(1210, 450), "recycle"],
+            [Vector2(1730, 450), "trash"], [Vector2(1910, 360), "trash"], [Vector2(2080, 540), "recycle"],
+            [Vector2(2250, 450), "trash"], [Vector2(2690, 540), "recycle"], [Vector2(3230, 450), "trash"],
+            [Vector2(3730, 540), "recycle"], [Vector2(4170, 360), "trash"],
+        ],
+        "bins": [[Vector2(1500, 650), "glass", 2], [Vector2(2150, 650), "metal", 2],
+            [Vector2(2800, 650), "paper", 2], [Vector2(4250, 650), "plastic", 2]],
     },
 ]
 
@@ -61,12 +89,18 @@ var transitioning := false
 var pause_block := 0.0
 var cp_pollution := 0.0
 var cp_stock := {}
+var bg_node: Node2D
+var cur_theme := "sea"          # sea / air / land (set per level)
+var card_layer: CanvasLayer
+var card_pending := false       # a level card is (about to be) showing
+var pending_msgs: Array = []    # HUD messages held back until the card closes
 
 
 func _ready() -> void:
     bg_layer = CanvasLayer.new()
     bg_layer.layer = -1
-    bg_layer.add_child(BackgroundS.new())
+    bg_node = BackgroundS.new()
+    bg_layer.add_child(bg_node)
     bg_layer.hide()
     add_child(bg_layer)
     hud = HudS.new()
@@ -99,6 +133,8 @@ func _show_menu() -> void:
     playing = false
     get_tree().paused = false
     GameState.running = false
+    card_pending = false
+    pending_msgs.clear()
     _clear_pause()
     _clear_overlay()
     if level_root:
@@ -158,7 +194,7 @@ func _begin_play(i: int, arena: bool) -> void:
     bg_layer.show()
     start_level(i, arena)
     if i == 0 and not arena:
-        GameState.item_collected.emit(Loc.t("msg_intro"))
+        _say(Loc.t("msg_intro"))
 
 
 # ---------------- pause ----------------
@@ -190,6 +226,10 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     level_idx = i
     in_arena = arena
     transitioning = false
+    var d: Dictionary = levels[i]
+    cur_theme = str(d.get("theme", "land"))
+    bg_node.theme = cur_theme
+    card_pending = not arena and not restart
     if restart:
         GameState.pollution = cp_pollution
         GameState.stock = cp_stock.duplicate()
@@ -198,12 +238,11 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
         cp_stock = GameState.stock.duplicate()
         GameState.save_game(i, arena)   # auto-save: every level start and before every boss
         if arena or i > 0:
-            GameState.item_collected.emit(Loc.t("msg_saved"))
+            _say(Loc.t("msg_saved"))
     GameState.running = not arena
     GameState.heat_timer = 0.0
     GameState.bins_done = 0
     GameState.bins_total = 0
-    var d: Dictionary = levels[i]
     level_root = Node2D.new()
     add_child(level_root)
 
@@ -265,6 +304,8 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     cam.make_current()
     GameState.hp = GameState.max_hp
     GameState.changed.emit()
+    if card_pending:
+        _show_level_card(i)
 
 
 func _platform(r: Rect2, grass: bool) -> void:
@@ -272,6 +313,7 @@ func _platform(r: Rect2, grass: bool) -> void:
     pl.position = r.position
     pl.size = r.size
     pl.grass = grass
+    pl.theme = cur_theme
     level_root.add_child(pl)
 
 
@@ -301,10 +343,62 @@ func _on_player_died() -> void:
 func _process(delta: float) -> void:
     # Sky turns sickly yellowish with pollution (brightness stays the same)
     var p := GameState.pollution / 100.0
-    RenderingServer.set_default_clear_color(Color(0.55, 0.8, 0.95).lerp(Color(0.76, 0.7, 0.48), p))
+    if playing:
+        RenderingServer.set_default_clear_color(_sky(p))
+    else:
+        RenderingServer.set_default_clear_color(Color(0.16, 0.12, 0.1))   # menu / cutscenes: warm letterbox
     pause_block = maxf(0.0, pause_block - delta)
     if playing and pause_layer == null and not get_tree().paused and pause_block <= 0.0 and Input.is_action_just_pressed("ui_cancel"):
         _open_pause()
+
+
+# ---------------- level themes + intro card ----------------
+func _sky(p: float) -> Color:
+    var clean := Color(0.55, 0.8, 0.95)
+    var dirty := Color(0.76, 0.7, 0.48)
+    if cur_theme == "sea":
+        clean = Color(0.6, 0.83, 0.94)
+        dirty = Color(0.66, 0.68, 0.5)
+    elif cur_theme == "air":
+        clean = Color(0.58, 0.78, 0.94)
+        dirty = Color(0.72, 0.62, 0.46)
+    elif cur_theme == "land":
+        clean = Color(0.64, 0.82, 0.92)
+        dirty = Color(0.74, 0.64, 0.46)
+    return clean.lerp(dirty, p)
+
+
+# HUD messages wait while the level card is up, so the player actually sees them
+func _say(text: String) -> void:
+    if card_pending:
+        pending_msgs.append(text)
+    else:
+        GameState.item_collected.emit(text)
+
+
+func _show_level_card(i: int) -> void:
+    var card := LevelCardS.new()
+    card.level_no = i + 1
+    card.theme = cur_theme
+    card.finished.connect(_on_card_done)
+    card_layer = CanvasLayer.new()
+    card_layer.layer = 45
+    card_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+    card_layer.add_child(card)
+    add_child(card_layer)
+    get_tree().paused = true
+
+
+func _on_card_done() -> void:
+    get_tree().paused = false
+    pause_block = 0.4
+    card_pending = false
+    if card_layer:
+        card_layer.queue_free()
+        card_layer = null
+    for m in pending_msgs:
+        GameState.item_collected.emit(m)
+    pending_msgs.clear()
 
 
 # ---------------- ending ----------------

@@ -117,6 +117,15 @@ var S := {
     "msg_up_speed": ["Sapling planted: Speed up!", "Fidan dikildi: Hız artışı!"],
     "msg_up_shield": ["Sapling planted: Shield (absorbs 1 hit)!", "Fidan dikildi: Kalkan (1 hasarı emer)!"],
     "msg_up_heal": ["Sapling planted: +1 health!", "Fidan dikildi: +1 can!"],
+    "lv_num": ["LEVEL %d", "BÖLÜM %d"],
+    "lv_sea": ["Save the Sea", "Denizi Kurtar"],
+    "lv_air": ["Save the Air", "Havayı Kurtar"],
+    "lv_land": ["Save the Land", "Toprağı Kurtar"],
+    "lv_sea_sub": ["Plastic is choking our oceans.", "Plastik okyanusları boğuyor."],
+    "lv_air_sub": ["Factory smoke and carbon are poisoning the sky.", "Fabrika dumanı ve karbon gökyüzünü zehirliyor."],
+    "lv_land_sub": ["Waste is burying the land. Stop the Landfill Titan!", "Atıklar toprağı gömüyor. Çöp Devi'ni durdur!"],
+    "lv_continue": ["Press Enter to start", "Başlamak için Enter'a bas"],
+    "msg_fury": ["THE LANDFILL TITAN IS DESPERATE! Everything at once!", "ÇÖP DEVİ ÇILGINA DÖNDÜ! Her şey bir arada!"],
     # ---------------- characters ----------------
     "char_0_name": ["Green", "Yeşil"],
     "char_1_name": ["Blue", "Mavi"],
@@ -156,7 +165,13 @@ func _ready() -> void:
     if cfg.load(SETTINGS_PATH) == OK:
         lang = str(cfg.get_value("game", "lang", "en"))
         fullscreen = bool(cfg.get_value("game", "fullscreen", false))
-    _apply_fullscreen()
+    # deferred: the window must exist before its mode can be changed reliably
+    _apply_fullscreen.call_deferred(false)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F11:
+        set_fullscreen(not fullscreen)
 
 
 func _save_settings() -> void:
@@ -178,11 +193,20 @@ func set_fullscreen(v: bool) -> void:
     _apply_fullscreen()
 
 
-func _apply_fullscreen() -> void:
+func _apply_fullscreen(restore_window := true) -> void:
     if fullscreen:
         DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-    else:
-        DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+        return
+    DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+    if not restore_window:
+        return
+    # back to the 1280x720 window, centered on the current screen
+    var win := Vector2i(1280, 720)
+    var scr := DisplayServer.window_get_current_screen()
+    var scr_size := DisplayServer.screen_get_size(scr)
+    if scr_size.x >= win.x and scr_size.y >= win.y:
+        DisplayServer.window_set_size(win)
+        DisplayServer.window_set_position(DisplayServer.screen_get_position(scr) + (scr_size - win) / 2)
 
 
 func t(key: String, args: Array = []) -> String:

@@ -1,7 +1,6 @@
 # Godot
 .godot/
 *.translation
-*.gd.uid
 
 # Export çıktıları
 *.exe

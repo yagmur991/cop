@@ -1,6 +1,7 @@
 extends Area2D
 # Boss gate, themed per boss. Locked until every recycling bin is full. Origin = top-left of the 80x200 door.
 # plastic: ocean / plastic-waste gate    factory: gloomy grey steel factory gate
+# land: landfill gate - tire stacks, rusty double doors, barbed wire, crows, toxic ooze
 
 signal entered
 
@@ -57,6 +58,8 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
     if boss_id == "factory":
         _draw_factory()
+    elif boss_id == "land":
+        _draw_land()
     else:
         _draw_plastic()
     _draw_lock()
@@ -159,3 +162,58 @@ func _draw_factory() -> void:
     var lc := Color(0.3, 0.95, 0.4) if unlocked() else Color(0.95, 0.2, 0.15)
     draw_circle(Vector2(40, -26), 9.0, lc if lit else lc.darkened(0.6))
     draw_arc(Vector2(40, -26), 9.0, 0, TAU, 14, Color(0.1, 0.1, 0.1), 2.0)
+
+
+func _draw_land() -> void:
+    var dirt := Color(0.3, 0.22, 0.17)
+    var rust := Color(0.52, 0.31, 0.19)
+    var tire := Color(0.1, 0.1, 0.11)
+    var hub_c := Color(0.32, 0.32, 0.35)
+    # stacked tires on both sides
+    for i in 4:
+        var ty := 184.0 - float(i) * 31.0
+        draw_circle(Vector2(-30, ty), 17.0, tire)
+        draw_circle(Vector2(-30, ty), 8.0, hub_c)
+        if i < 3:
+            draw_circle(Vector2(110, ty + 10.0), 17.0, tire)
+            draw_circle(Vector2(110, ty + 10.0), 8.0, hub_c)
+    # earth frame + dead roots hanging from the top beam
+    draw_rect(Rect2(-10, -14, 100, 214), dirt)
+    draw_rect(Rect2(-14, -28, 108, 18), dirt.lightened(0.12))
+    for i in 5:
+        var rx := float(i) * 20.0 - 4.0
+        draw_line(Vector2(rx, -10), Vector2(rx + sin(t * 0.8 + float(i)) * 3.0, 8.0 + float((i % 3) * 8)), Color(0.22, 0.16, 0.12), 3.0)
+    # toxic glow behind the doors (visible when open)
+    draw_rect(Rect2(0, 0, 80, 200), Color(0.3, 0.5, 0.1))
+    draw_rect(Rect2(0, 120, 80, 80), Color(0.55, 0.85, 0.2, 0.35 + 0.15 * sin(t * 3.0)))
+    # double doors: corrugated rusty halves slide apart
+    var half := 40.0 * (1.0 - open_t * 0.9)
+    if half > 1.0:
+        for side in 2:
+            var x0 := 0.0 if side == 0 else 80.0 - half
+            draw_rect(Rect2(x0, 0, half, 200), rust)
+            for x in range(0, int(half), 8):
+                draw_line(Vector2(x0 + float(x), 0), Vector2(x0 + float(x), 200), rust.darkened(0.3), 2.0)
+            for y in [40, 100, 160]:
+                draw_rect(Rect2(x0, float(y), half, 8), rust.darkened(0.2))
+        draw_line(Vector2(40, 0), Vector2(40, 200), Color(0.1, 0.07, 0.05), 3.0)
+    # barbed wire along the top
+    var wire := PackedVector2Array()
+    for k in 14:
+        wire.append(Vector2(-12.0 + float(k) * 8.0, -32.0 + float(k % 2) * 6.0))
+    draw_polyline(wire, Color(0.62, 0.62, 0.65), 2.0)
+    # warning sign
+    draw_colored_polygon(PackedVector2Array([Vector2(20, -34), Vector2(60, -34), Vector2(40, -68)]), Color(0.9, 0.75, 0.1))
+    draw_string(ThemeDB.fallback_font, Vector2(34, -38), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(0.1, 0.1, 0.1))
+    # crows on the beam
+    for k in 2:
+        var cx := -2.0 + float(k) * 86.0
+        var head := sin(t * 2.0 + float(k) * 2.0) * 2.0
+        draw_circle(Vector2(cx, -40), 7.0, Color(0.08, 0.08, 0.1))
+        draw_circle(Vector2(cx + 5.0, -47.0 + head), 4.0, Color(0.08, 0.08, 0.1))
+        draw_colored_polygon(PackedVector2Array([Vector2(cx + 8.0, -48.0 + head), Vector2(cx + 8.0, -45.0 + head), Vector2(cx + 14.0, -46.5 + head)]), Color(0.85, 0.65, 0.2))
+        draw_circle(Vector2(cx + 6.0, -48.0 + head), 1.2, Color(1.0, 0.3, 0.2))
+    # toxic ooze at the base
+    draw_colored_polygon(PackedVector2Array([Vector2(-24, 200), Vector2(-10, 194), Vector2(40, 197), Vector2(90, 194), Vector2(104, 200)]), Color(0.45, 0.8, 0.2, 0.85))
+    for i in 4:
+        draw_circle(Vector2(8.0 + float(i) * 22.0 + sin(t + float(i)) * 2.0, 195.0 - fposmod(t * 20.0 + float(i) * 30.0, 40.0)), 2.5, Color(0.75, 0.95, 0.35, 0.6))
