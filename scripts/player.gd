@@ -4,6 +4,7 @@ signal died
 
 const GRAVITY := 1500.0
 const ArtS = preload("res://scripts/art.gd")
+const SpritesS = preload("res://scripts/sprites.gd")
 const JUMP_V := -620.0
 
 var jumps_left := 1
@@ -15,6 +16,7 @@ var knock := 0.0
 var spawn_pos := Vector2(100, 560)
 var hitbox: Area2D
 var _dead := false
+var sprite: Sprite2D
 
 
 func _ready() -> void:
@@ -41,6 +43,11 @@ func _ready() -> void:
     hitbox.body_entered.connect(_on_hit_body)
     hitbox.area_entered.connect(_on_hit_area)
     add_child(hitbox)
+
+    # hero sprite (32x48), feet aligned with the bottom of the collision box
+    sprite = SpritesS.make(SpritesS.hero(GameState.char_idx), 1.0)
+    sprite.position = Vector2(0, 22)
+    add_child(sprite)
 
 
 func _on_hit_body(body: Node) -> void:
@@ -129,15 +136,11 @@ func _lose_hp() -> void:
 
 
 func _draw() -> void:
-    var col: Color = GameState.player_color()
-    draw_rect(Rect2(-14, -22, 28, 44), col)
-    draw_rect(Rect2(-14, -22, 28, 10), col.darkened(0.2))
-    draw_rect(Rect2(facing * 6 - 3, -16, 6, 6), Color.WHITE)
-    draw_rect(Rect2(-5, 0, 10, 10), Color(0.2, 0.5, 0.9))  # geri dönüşüm rozeti
+    sprite.flip_h = facing < 0
     # the trash type E would drop right now, floating above the head
     var held: String = GameState.trash_types[GameState.sel]
     if int(GameState.stock[held]) > 0:
-        ArtS.trash(self, held, Vector2(0, -40.0 + sin(Time.get_ticks_msec() * 0.005) * 2.0), 0.8)
+        ArtS.trash(self, held, Vector2(0, -42.0 + sin(Time.get_ticks_msec() * 0.005) * 2.0), 0.8)
     if attack_vis > 0.0:
         var x := 14.0 if facing > 0 else -58.0
         draw_rect(Rect2(x, -20, 44, 40), Color(1, 1, 1, 0.45))

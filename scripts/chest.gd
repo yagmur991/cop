@@ -22,6 +22,7 @@ func _ready() -> void:
     if kind == "trash":
         sprite = Sprite2D.new()
         sprite.texture = preload("res://assets/Sprite-0001-Sheet.png")
+        sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
         sprite.scale = Vector2(0.6, 0.6)    # 64x64 -> ~38x38
         sprite.position = Vector2(0, -19)   # origin is bottom-middle
         add_child(sprite)

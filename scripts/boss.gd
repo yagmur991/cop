@@ -11,6 +11,7 @@ const ItemS = preload("res://scripts/item.gd")
 const ProjS = preload("res://scripts/projectile.gd")
 const HazardS = preload("res://scripts/hazard.gd")
 const FontsS = preload("res://scripts/fonts.gd")
+const SpritesS = preload("res://scripts/sprites.gd")
 const MIN_HITS := 6   # boss en az bu kadar vuruşta ölür (hasar yükseltmeleri ne olursa olsun)
 
 var boss_id := "plastic"
@@ -36,6 +37,9 @@ var later_q: Array = []   # delayed actions: {t, fn, args}
 var last_attack := ""
 var player: Node2D
 var hurt_area: Area2D
+var sprite: Sprite2D
+var sprite_base_y := 0.0
+var flash_mat: ShaderMaterial
 
 
 func _ready() -> void:
@@ -65,6 +69,7 @@ func _ready() -> void:
     hs.shape = hr
     hurt_area.add_child(hs)
     add_child(hurt_area)
+    _make_sprite()
 
 
 func _physics_process(delta: float) -> void:
@@ -373,95 +378,36 @@ func die() -> void:
         queue_free()
 
 
+func _make_sprite() -> void:
+    # origin of the boss is the middle of its collision box; the sprite stands on the box bottom
+    var scl := 1.0
+    var feet := 50.0
+    if boss_id == "land":
+        scl = 1.25
+        feet = 58.0
+    sprite = SpritesS.make(SpritesS.BOSSES[boss_id], scl)
+    sprite.position = Vector2(0, feet)
+    flash_mat = SpritesS.flash_material()
+    sprite.material = flash_mat
+    sprite_base_y = feet
+    add_child(sprite)
+
+
+func _update_sprite() -> void:
+    flash_mat.set_shader_parameter("flash", 1.0 if flash > 0.0 else 0.0)
+    # angrier phases tint the boss red
+    var rage := 0.0
+    if phase2:
+        rage = 0.25
+    if phase3:
+        rage = 0.5
+    sprite.modulate = Color.WHITE.lerp(Color(1.0, 0.45, 0.45), rage)
+    # gentle idle bob
+    sprite.position.y = sprite_base_y + sin(t * 2.0) * 2.0
+
+
 func _draw() -> void:
-    var white := flash > 0.0
-    var rage := Color(0.9, 0.2, 0.2)
-    if boss_id == "plastic":
-        var c := Color(0.3, 0.7, 0.9)
-        if phase2:
-            c = c.lerp(rage, 0.35)
-        if white:
-            c = Color.WHITE
-        draw_circle(Vector2(0, 0), 48.0, c)
-        draw_rect(Rect2(-12, -66, 24, 18), c.darkened(0.25))
-        draw_circle(Vector2(-16, -8), 11.0, Color.WHITE)
-        draw_circle(Vector2(16, -8), 11.0, Color.WHITE)
-        draw_circle(Vector2(-16, -6), 5.0, Color.BLACK)
-        draw_circle(Vector2(16, -6), 5.0, Color.BLACK)
-    elif boss_id == "factory":
-        var c2 := Color(0.4, 0.4, 0.42)
-        if phase2:
-            c2 = c2.lerp(rage, 0.3)
-        if white:
-            c2 = Color.WHITE
-        draw_rect(Rect2(-45, -50, 90, 100), c2)
-        draw_rect(Rect2(-35, -85, 18, 38), c2.darkened(0.25))
-        draw_rect(Rect2(17, -85, 18, 38), c2.darkened(0.25))
-        for i in 3:
-            draw_circle(Vector2(-26 + sin(t * 2.0 + i) * 6.0, -100 - i * 16), 8.0 + i * 2.0, Color(0.3, 0.3, 0.3, 0.7))
-        draw_rect(Rect2(-28, -15, 22, 10), Color(0.9, 0.1, 0.1))
-        draw_rect(Rect2(6, -15, 22, 10), Color(0.9, 0.1, 0.1))
-    else:
-        _draw_land(white, rage)
+    _update_sprite()
     var is_land := boss_id == "land"
     if windup > 0.0:
         draw_string(FontsS.BTN, Vector2(-10, -150.0 if is_land else -110.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(1.0, 0.2, 0.2))
-
-
-func _draw_land(white: bool, rage: Color) -> void:
-    var wob := sin(t * 2.0) * 2.0
-    var base := Color(0.38, 0.32, 0.27)
-    if phase2:
-        base = base.lerp(rage, 0.18)
-    if phase3:
-        base = base.lerp(rage, 0.35)
-    if white:
-        base = Color.WHITE
-    # mound body
-    draw_colored_polygon(PackedVector2Array([Vector2(-66, 58), Vector2(-74, 18), Vector2(-60, -28), Vector2(-34, -50), Vector2(0, -56), Vector2(36, -48), Vector2(62, -24), Vector2(76, 18), Vector2(68, 58)]), base)
-    draw_line(Vector2(-70, 8), Vector2(72, 14), base.darkened(0.25), 4.0)
-    draw_line(Vector2(-64, 34), Vector2(66, 38), base.darkened(0.25), 4.0)
-    for i in 16:
-        var px := -58.0 + float((i * 37) % 112)
-        var py := -44.0 + float((i * 53) % 96)
-        if pow(px / 70.0, 2.0) + pow((py - 4.0) / 56.0, 2.0) < 0.82:
-            var jc: Color = GameState.trash_colors[GameState.trash_types[i % 4]]
-            draw_rect(Rect2(px, py, 10, 7), Color.WHITE if white else jc.darkened(0.15))
-    for tx in [-58.0, 58.0]:
-        draw_circle(Vector2(tx, 36), 17.0, Color(0.1, 0.1, 0.11))
-        draw_circle(Vector2(tx, 36), 8.0, Color(0.3, 0.3, 0.32))
-    # arms swinging
-    var sw := sin(t * 3.0) * 8.0
-    draw_line(Vector2(-66, -8), Vector2(-92, 22 + sw), base.darkened(0.15), 22.0)
-    draw_line(Vector2(66, -8), Vector2(92, 22 - sw), base.darkened(0.15), 22.0)
-    draw_circle(Vector2(-94, 26 + sw), 15.0, base.lightened(0.1))
-    draw_circle(Vector2(94, 26 - sw), 15.0, base.lightened(0.1))
-    # head with a crown of glass bottles
-    var head := Color.WHITE if white else Color(0.5, 0.42, 0.35)
-    draw_rect(Rect2(-30, -98 + wob, 60, 48), head)
-    draw_rect(Rect2(-30, -98 + wob, 60, 8), head.darkened(0.2))
-    for i in 4:
-        var bx := -24.0 + float(i) * 16.0
-        draw_colored_polygon(PackedVector2Array([Vector2(bx - 6.0, -98.0 + wob), Vector2(bx + 6.0, -98.0 + wob), Vector2(bx, -122.0 + wob - float(i % 2) * 8.0)]), Color.WHITE if white else Color(0.35, 0.75, 0.45))
-    # glowing toxic eyes + core
-    var glow := 0.6 + 0.4 * sin(t * 6.0)
-    var ec := Color(1.0, 0.45, 0.2) if phase3 else Color(0.55, 1.0, 0.3)
-    for ex in [-13.0, 13.0]:
-        draw_circle(Vector2(ex, -74.0 + wob), 11.0, Color(ec, 0.25 * glow))
-        draw_circle(Vector2(ex, -74.0 + wob), 6.0, ec)
-    draw_line(Vector2(-24, -88.0 + wob), Vector2(-5, -80.0 + wob), Color(0.1, 0.07, 0.05), 4.0)
-    draw_line(Vector2(24, -88.0 + wob), Vector2(5, -80.0 + wob), Color(0.1, 0.07, 0.05), 4.0)
-    draw_rect(Rect2(-18, -62.0 + wob, 36, 8), Color(0.12, 0.08, 0.06))
-    for i in 5:
-        draw_rect(Rect2(-16.0 + float(i) * 7.0, -62.0 + wob, 4, 6), Color(0.85, 0.85, 0.8))
-    var pulse := 0.5 + 0.5 * sin(t * (9.0 if phase3 else 5.0))
-    draw_circle(Vector2(0, 16), 20.0, Color(ec, 0.15 + 0.15 * pulse))
-    draw_circle(Vector2(0, 16), 11.0 + 2.0 * pulse, ec)
-    # crows circling (more of them as it gets angrier)
-    var crows := 2 + (2 if phase2 else 0) + (2 if phase3 else 0)
-    for i in crows:
-        var a := t * (1.4 + 0.2 * float(i)) + float(i) * TAU / float(crows)
-        var cp := Vector2(cos(a) * 95.0, -112.0 + sin(a) * 26.0)
-        var fl := sin(t * 14.0 + float(i)) * 5.0
-        draw_line(cp + Vector2(-8, -fl), cp, Color(0.08, 0.08, 0.1), 3.0)
-        draw_line(cp, cp + Vector2(8, -fl), Color(0.08, 0.08, 0.1), 3.0)

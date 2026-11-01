@@ -9,8 +9,9 @@ Platformer about collecting, sorting and recycling waste to save the planet.
 5. The game auto-saves at every level start and before/after every boss (Continue loads the last save).
 
 ## Sprites
-- Recycling bin sprites: `assets/<Type>RecycleBin-Sheet.png` (Plastic included; Glass, Metal, Paper are picked up automatically when added).
-- Everything else is drawn in code; replace `_draw()` with `Sprite2D` when art is ready.
+- All PNG sprites are registered in `scripts/sprites.gd`: heroes (Gren, Blu, Yello, Purp, Pinkie = character 1-5), `Basic Monster` (all enemies),
+  `Boss 1/2/3` (plastic / factory / landfill), `Recycle bin <type>`, `gaia_01/02` (mentor), `Sprite-0001-Sheet` (trash chest).
+- Still drawn in code: trash/sapling item icons, platforms, gate, hazards, backgrounds, cutscene scenery.
 - Translations live in `scripts/loc.gd` (English / Turkish).
 
 ## Levels

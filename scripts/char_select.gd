@@ -1,6 +1,7 @@
 extends Node2D
 
 const FontsS = preload("res://scripts/fonts.gd")
+const SpritesS = preload("res://scripts/sprites.gd")
 # "Who are you?" character select. Each color gives a small perk.
 
 signal finished
@@ -8,6 +9,10 @@ signal finished
 var sel := 0
 var t := 0.0
 var delay := 0.35
+
+
+func _ready() -> void:
+    texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixel art
 
 
 func _process(delta: float) -> void:
@@ -52,11 +57,10 @@ func _input(event: InputEvent) -> void:
                 return
 
 
-func _char(p: Vector2, s: float, col: Color) -> void:
-    draw_rect(Rect2(p + Vector2(-14, -22) * s, Vector2(28, 44) * s), col)
-    draw_rect(Rect2(p + Vector2(-14, -22) * s, Vector2(28, 10) * s), col.darkened(0.2))
-    draw_rect(Rect2(p + Vector2(3, -16) * s, Vector2(6, 6) * s), Color.WHITE)
-    draw_rect(Rect2(p + Vector2(-5, 0) * s, Vector2(10, 10) * s), Color(0.2, 0.5, 0.9))
+func _char(p: Vector2, s: float, idx: int, tint: Color) -> void:
+    var tex := SpritesS.hero(idx)
+    var sz := Vector2(tex.get_width(), tex.get_height()) * s
+    draw_texture_rect(tex, Rect2(p - sz / 2.0, sz), false, tint)
 
 
 func _draw() -> void:
@@ -70,10 +74,10 @@ func _draw() -> void:
         var base: Color = GameState.char_colors[i]
         if i == sel:
             draw_circle(Vector2(x, 350), 90.0, Color(1, 1, 1, 0.08))
-            _char(Vector2(x, 350 + sin(t * 4.0) * 6.0), 2.8, base)
+            _char(Vector2(x, 350 + sin(t * 4.0) * 6.0), 4.0, i, Color.WHITE)
             draw_rect(Rect2(x - 60, 440, 120, 4), base)
         else:
-            _char(Vector2(x, 360), 1.9, base.darkened(0.35))
+            _char(Vector2(x, 360), 3.0, i, Color(0.55, 0.55, 0.6))
     draw_string(FontsS.TITLE, Vector2(0, 530), GameState.char_name(sel), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 40, GameState.char_colors[sel])
     draw_string(FontsS.BTN, Vector2(0, 575), GameState.char_perk(sel), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 26, Color.WHITE)
     draw_string(f, Vector2(0, 660), Loc.t("cs_hint"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 20, Color(0.6, 0.6, 0.7))
