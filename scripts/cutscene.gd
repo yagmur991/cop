@@ -1,7 +1,6 @@
 extends Node2D
 
 const FontsS = preload("res://scripts/fonts.gd")
-const SpritesS = preload("res://scripts/sprites.gd")
 # Overcooked tarzı anlatıcılı sinematik. Görseller kodla çizilir; ileride sprite ile değiştirilebilir.
 # Enter: ilerle, Esc: sinematiği atla.
 
@@ -20,7 +19,6 @@ var voice_n := 0
 
 
 func _ready() -> void:
-    texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixel art
     voice = AudioStreamPlayer.new()
     add_child(voice)
     if ResourceLoader.exists("res://assets/sfx/blip_narrator.wav"):
@@ -238,10 +236,19 @@ func _ocean() -> void:
 
 
 func _mentor(p: Vector2, sc: float, mood: int) -> void:
-    # p = horizontal centre / top of the sprite; sc = scale of the 128x160 PNG
-    var tex: Texture2D = SpritesS.GAIA[clampi(mood, 0, 1)]
-    var sz := Vector2(tex.get_width(), tex.get_height()) * sc
-    draw_texture_rect(tex, Rect2(p - Vector2(sz.x / 2.0, 0.0), sz), false)
+    draw_colored_polygon(PackedVector2Array([p + Vector2(-60, 0) * sc, p + Vector2(60, 0) * sc, p + Vector2(80, 130) * sc, p + Vector2(-80, 130) * sc]), Color(0.95, 0.95, 0.98))
+    draw_rect(Rect2(p + Vector2(-5, 5) * sc, Vector2(10, 120) * sc), Color(0.8, 0.8, 0.85))
+    draw_circle(p + Vector2(0, -48) * sc, 46.0 * sc, Color(0.75, 0.75, 0.78))
+    draw_circle(p + Vector2(0, -33) * sc, 40.0 * sc, Color(0.96, 0.8, 0.65))
+    draw_arc(p + Vector2(-16, -36) * sc, 12.0 * sc, 0, TAU, 20, Color(0.1, 0.1, 0.1), 3.0)
+    draw_arc(p + Vector2(16, -36) * sc, 12.0 * sc, 0, TAU, 20, Color(0.1, 0.1, 0.1), 3.0)
+    draw_line(p + Vector2(-4, -36) * sc, p + Vector2(4, -36) * sc, Color(0.1, 0.1, 0.1), 3.0)
+    draw_circle(p + Vector2(-16, -36) * sc, 3.0 * sc, Color(0.1, 0.1, 0.1))
+    draw_circle(p + Vector2(16, -36) * sc, 3.0 * sc, Color(0.1, 0.1, 0.1))
+    if mood == 1:
+        draw_arc(p + Vector2(0, -26) * sc, 15.0 * sc, 0.25, PI - 0.25, 12, Color(0.5, 0.1, 0.1), 3.0)
+    else:
+        draw_line(p + Vector2(-10, -16) * sc, p + Vector2(10, -18) * sc, Color(0.5, 0.1, 0.1), 3.0)
 
 
 func _mentor_room(mood: int) -> void:
@@ -258,7 +265,7 @@ func _mentor_room(mood: int) -> void:
         draw_rect(Rect2(840, 250, 300, 60), Color(0.3, 0.22, 0.18))
         draw_circle(Vector2(950, 200 - fposmod(t * 20.0, 40.0)), 22.0, Color(0.3, 0.28, 0.25, 0.7))
     draw_rect(win, Color(0.9, 0.9, 0.95), false, 6.0)
-    _mentor(Vector2(430, 96), 2.6, mood)   # feet end right at the dialogue box
+    _mentor(Vector2(430, 330), 2.0, mood)
     if mood == 1:
         for i in 40:
             var cp := Vector2(fposmod(i * 97.0, 1280.0), fposmod(i * 53.0 + t * 120.0, 500.0))

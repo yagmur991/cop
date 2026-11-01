@@ -5,7 +5,6 @@ signal finished
 
 const PAGES := 4
 const ArtS = preload("res://scripts/art.gd")
-const SpritesS = preload("res://scripts/sprites.gd")
 const FontsS = preload("res://scripts/fonts.gd")
 const CREAM := Color(1.0, 0.96, 0.86)
 const COCOA := Color(0.27, 0.18, 0.13)
@@ -17,10 +16,6 @@ var delay := 0.25
 var closed := false
 var back_rect := Rect2(60, 648, 190, 46)
 var next_rect := Rect2(1030, 648, 190, 46)
-
-
-func _ready() -> void:
-    texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixel art
 
 
 func _process(delta: float) -> void:
@@ -130,10 +125,12 @@ func _page_controls() -> void:
             x += _key(Vector2(x, y), k) + 10.0
         draw_string(FontsS.BTN, Vector2(330, y + 34), Loc.t(rows[i][1]), HORIZONTAL_ALIGNMENT_LEFT, 560.0, 26, CREAM)
     # little scene: the hero, a trash monster and a sapling
+    var c := GameState.player_color()
     var p := Vector2(1030, 380 + sin(t * 3.0) * 6.0)
-    var htex := SpritesS.hero(GameState.char_idx)
-    var hsz := Vector2(htex.get_width(), htex.get_height()) * 3.0
-    draw_texture_rect(htex, Rect2(p - hsz / 2.0, hsz), false)
+    draw_rect(Rect2(p + Vector2(-14, -22) * 3.0, Vector2(28, 44) * 3.0), c)
+    draw_rect(Rect2(p + Vector2(-14, -22) * 3.0, Vector2(28, 10) * 3.0), c.darkened(0.2))
+    draw_rect(Rect2(p + Vector2(3, -16) * 3.0, Vector2(6, 6) * 3.0), Color.WHITE)
+    draw_rect(Rect2(p + Vector2(-5, 0) * 3.0, Vector2(10, 10) * 3.0), Color(0.2, 0.5, 0.9))
     draw_rect(Rect2(p + Vector2(50, -40), Vector2(60, 70)), Color(1, 1, 1, 0.35))
     ArtS.trash(self, "plastic", Vector2(1100, 600), 2.4)
     ArtS.sapling(self, Vector2(940, 610), 2.4)

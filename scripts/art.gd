@@ -1,5 +1,4 @@
 extends RefCounted
-const SpritesS = preload("res://scripts/sprites.gd")
 # Shared drawing helpers (icons). Call from inside a CanvasItem's _draw().
 
 
@@ -37,10 +36,10 @@ static func sapling(ci: CanvasItem, p: Vector2, s: float = 1.0) -> void:
 
 
 static func bin(ci: CanvasItem, type: String, p: Vector2, s: float = 1.0) -> void:
-    # p = bottom middle. Needs texture_filter = NEAREST on `ci` for crisp pixels.
-    var tex: Texture2D = SpritesS.BINS[type]
-    var sz := Vector2(tex.get_width(), tex.get_height()) * s * 0.9
-    ci.draw_texture_rect(tex, Rect2(p + Vector2(-sz.x / 2.0, -sz.y), sz), false)
+    var col: Color = GameState.trash_colors[type]
+    ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-20, -44) * s, p + Vector2(20, -44) * s, p + Vector2(24, 0), p + Vector2(-24, 0)]), col.darkened(0.15))
+    ci.draw_rect(Rect2(p + Vector2(-25, -52) * s, Vector2(50, 9) * s), col.lightened(0.2))
+    recycle(ci, p + Vector2(0, -22) * s, 9.0 * s, 0.0, Color.WHITE)
 
 
 static func recycle(ci: CanvasItem, c: Vector2, r: float, rot: float, col: Color) -> void:

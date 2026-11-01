@@ -27,10 +27,6 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 
-[dotnet]
-
-project/assembly_name="Save Gaia"
-
 [rendering]
 
 environment/defaults/default_clear_color=Color(0.16, 0.12, 0.1, 1)
