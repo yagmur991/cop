@@ -66,10 +66,12 @@ func _try_deposit() -> void:
     if held == type:
         have += 1
         GameState.deposit(type, 1)
+        Sfx.play("deposit")
         GameState.burst.emit(at, GameState.trash_colors[type], 14)
         GameState.item_collected.emit(Loc.t("msg_bin", [GameState.trash_name(type), have, need]))
         if have >= need:
             done = true
+            Sfx.play("bin_full")
             if sprite:
                 sprite.modulate = Color(0.6, 1.0, 0.6)
             activated.emit()

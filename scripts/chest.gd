@@ -31,6 +31,7 @@ func open() -> void:
     if opened:
         return
     opened = true
+    Sfx.play("chest")
     GameState.burst.emit(global_position + Vector2(0, -20), Color(0.75, 0.6, 0.4), 10)
     GameState.shake.emit(2.5, 0.12)
     if sprite:

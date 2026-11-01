@@ -79,6 +79,7 @@ func _physics_process(delta: float) -> void:
     if Input.is_action_just_pressed("jump") and jumps_left > 0:
         velocity.y = JUMP_V
         jumps_left -= 1
+        Sfx.play("jump")
     if Input.is_action_just_released("jump") and velocity.y < -250.0:
         velocity.y *= 0.5
 
@@ -86,6 +87,7 @@ func _physics_process(delta: float) -> void:
         attack_cd = GameState.attack_delay
         attack_vis = 0.15
         hitbox.monitoring = true
+        Sfx.play("attack")
 
     move_and_slide()
 
@@ -114,6 +116,7 @@ func hurt(from_x: float) -> void:
         GameState.changed.emit()
         GameState.item_collected.emit(Loc.t("msg_shield"))
         return
+    Sfx.play("hurt")
     _lose_hp()
 
 

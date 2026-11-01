@@ -43,6 +43,7 @@ func bin_done() -> void:
     GameState.lv_stats["bins"] = done
     if done == required():
         GameState.item_collected.emit(Loc.t("msg_gate_open"))
+        Sfx.play("unlock")
     if done >= total and total > required():
         GameState.add_pollution(-12.0)
         GameState.item_collected.emit(Loc.t("msg_perfect"))

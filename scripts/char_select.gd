@@ -17,14 +17,17 @@ func _process(delta: float) -> void:
     if delay <= 0.0:
         if Input.is_action_just_pressed("right") or Input.is_action_just_pressed("ui_right"):
             sel = (sel + 1) % n
+            Sfx.play("ui_move")
         if Input.is_action_just_pressed("left") or Input.is_action_just_pressed("ui_left"):
             sel = (sel + n - 1) % n
+            Sfx.play("ui_move")
         if Input.is_action_just_pressed("ui_accept"):
             _confirm()
     queue_redraw()
 
 
 func _confirm() -> void:
+    Sfx.play("ui_select")
     GameState.char_idx = sel
     set_process(false)
     finished.emit()
@@ -45,6 +48,7 @@ func _input(event: InputEvent) -> void:
                     _confirm()
                 else:
                     sel = i
+                    Sfx.play("ui_move")
                 return
 
 

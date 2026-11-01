@@ -54,6 +54,7 @@ func die() -> void:
     if dead:
         return
     dead = true
+    Sfx.play("enemy_pop")
     GameState.lv_stats["kills"] += 1
     GameState.burst.emit(global_position, _body_color(), 9)
     GameState.shake.emit(2.0, 0.1)

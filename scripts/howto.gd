@@ -23,12 +23,13 @@ func _process(delta: float) -> void:
     delay -= delta
     if delay <= 0.0 and not closed:
         if Input.is_action_just_pressed("right") or Input.is_action_just_pressed("ui_right"):
-            page = mini(page + 1, PAGES - 1)
+            _go(1)
         if Input.is_action_just_pressed("left") or Input.is_action_just_pressed("ui_left"):
-            page = maxi(page - 1, 0)
+            _go(-1)
         if Input.is_action_just_pressed("ui_accept"):
             _next()
         if Input.is_action_just_pressed("ui_cancel"):
+            Sfx.play("ui_back")
             _finish()
     queue_redraw()
 
@@ -41,13 +42,21 @@ func _input(event: InputEvent) -> void:
         if next_rect.has_point(m):
             _next()
         elif back_rect.has_point(m):
-            page = maxi(page - 1, 0)
+            _go(-1)
+
+
+func _go(d: int) -> void:
+    var np := clampi(page + d, 0, PAGES - 1)
+    if np != page:
+        page = np
+        Sfx.play("ui_move")
 
 
 func _next() -> void:
     if page < PAGES - 1:
-        page += 1
+        _go(1)
     else:
+        Sfx.play("ui_select")
         _finish()
 
 

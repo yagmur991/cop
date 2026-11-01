@@ -59,7 +59,7 @@ func _card_rect(i: int) -> Rect2:
 
 
 func _opt_rect(i: int) -> Rect2:
-    return Rect2(340, 230 + i * 100, 600, 70)
+    return Rect2(340, 200 + i * 80, 600, 62)
 
 
 func _chip_rect(i: int) -> Rect2:
@@ -88,9 +88,12 @@ func _process(delta: float) -> void:
             "difficulty":
                 if Input.is_action_just_pressed("left"):
                     diff_sel = (diff_sel + 2) % 3
+                    Sfx.play("ui_move")
                 if Input.is_action_just_pressed("right"):
                     diff_sel = (diff_sel + 1) % 3
+                    Sfx.play("ui_move")
                 if _accept():
+                    Sfx.play("ui_select")
                     new_game.emit(diff_sel)
                 if _cancel():
                     _to_main()
@@ -106,11 +109,14 @@ func _input_main() -> void:
     var items := _items()
     if Input.is_action_just_pressed("down"):
         sel = _next_enabled(sel, 1)
+        Sfx.play("ui_move")
     if Input.is_action_just_pressed("up"):
         sel = _next_enabled(sel, -1)
+        Sfx.play("ui_move")
     if _accept():
         _activate(items[sel][0])
     if is_pause and _cancel():
+        Sfx.play("ui_back")
         resume.emit()
 
 
@@ -127,27 +133,46 @@ func _next_enabled(from: int, dir: int) -> int:
 
 func _input_options() -> void:
     if Input.is_action_just_pressed("down"):
-        opt_sel = (opt_sel + 1) % 3
+        opt_sel = (opt_sel + 1) % 5
+        Sfx.play("ui_move")
     if Input.is_action_just_pressed("up"):
-        opt_sel = (opt_sel + 2) % 3
-    var change := Input.is_action_just_pressed("left") or Input.is_action_just_pressed("right") or _accept()
-    if change:
+        opt_sel = (opt_sel + 4) % 5
+        Sfx.play("ui_move")
+    var l := Input.is_action_just_pressed("left")
+    var r := Input.is_action_just_pressed("right")
+    if opt_sel == 2 or opt_sel == 3:
+        if l:
+            _adjust_volume(-0.1)
+        if r:
+            _adjust_volume(0.1)
+    elif l or r or _accept():
         _options_toggle()
     if _cancel():
         _to_main()
+
+
+func _adjust_volume(delta: float) -> void:
+    if opt_sel == 2:
+        Loc.set_music_vol(snappedf(clampf(Loc.music_vol + delta, 0.0, 1.0), 0.1))
+    else:
+        Loc.set_sfx_vol(snappedf(clampf(Loc.sfx_vol + delta, 0.0, 1.0), 0.1))
+    Sfx.play("ui_move")
 
 
 func _options_toggle() -> void:
     match opt_sel:
         0:
             Loc.set_lang("tr" if Loc.lang == "en" else "en")
+            Sfx.play("ui_select")
         1:
             Loc.set_fullscreen(not Loc.fullscreen)
-        2:
+            Sfx.play("ui_select")
+        4:
             _to_main()
 
 
 func _activate(id: String) -> void:
+    Sfx.play("ui_select")
     match id:
         "new":
             page = "difficulty"
@@ -174,6 +199,7 @@ func _activate(id: String) -> void:
 
 
 func _to_main() -> void:
+    Sfx.play("ui_back")
     page = "main"
     delay = 0.15
 
@@ -202,16 +228,19 @@ func _hover() -> void:
         "main":
             var items := _items()
             for i in items.size():
-                if _item_rect(i).has_point(m) and _enabled(items[i][0]):
+                if _item_rect(i).has_point(m) and _enabled(items[i][0]) and sel != i:
                     sel = i
+                    Sfx.play("ui_move")
         "difficulty":
             for i in 3:
-                if _card_rect(i).has_point(m):
+                if _card_rect(i).has_point(m) and diff_sel != i:
                     diff_sel = i
+                    Sfx.play("ui_move")
         "options":
-            for i in 3:
-                if _opt_rect(i).has_point(m):
+            for i in 5:
+                if _opt_rect(i).has_point(m) and opt_sel != i:
                     opt_sel = i
+                    Sfx.play("ui_move")
 
 
 func _input(event: InputEvent) -> void:
@@ -234,21 +263,33 @@ func _click(m: Vector2) -> void:
             if not is_pause:
                 if _chip_rect(0).has_point(m):
                     Loc.set_lang("en")
+                    Sfx.play("ui_select")
                 elif _chip_rect(1).has_point(m):
                     Loc.set_lang("tr")
+                    Sfx.play("ui_select")
         "difficulty":
             for i in 3:
                 if _card_rect(i).has_point(m):
                     diff_sel = i
+                    Sfx.play("ui_select")
                     new_game.emit(i)
                     return
             if back_rect.has_point(m):
                 _to_main()
         "options":
-            for i in 3:
+            for i in 5:
                 if _opt_rect(i).has_point(m):
                     opt_sel = i
-                    _options_toggle()
+                    if i == 2 or i == 3:
+                        var sx := _opt_rect(i).position.x + 300.0
+                        var v := snappedf(clampf((m.x - sx) / 230.0, 0.0, 1.0), 0.1)
+                        if i == 2:
+                            Loc.set_music_vol(v)
+                        else:
+                            Loc.set_sfx_vol(v)
+                        Sfx.play("ui_move")
+                    else:
+                        _options_toggle()
                     return
             if back_rect.has_point(m):
                 _to_main()
@@ -406,35 +447,46 @@ func _draw_difficulty() -> void:
 
 func _draw_options() -> void:
     _panel_bg()
-    _outlined(Loc.t("o_title"), Vector2(0, 150), 1280.0, 56, CREAM, 8, FontTitle)
+    _outlined(Loc.t("o_title"), Vector2(0, 130), 1280.0, 56, CREAM, 8, FontTitle)
     var cols := _btn_cols()
-    var labels := [Loc.t("o_language"), Loc.t("o_fullscreen"), Loc.t("o_back")]
-    var vals := ["<  %s  >" % ("English" if Loc.lang == "en" else "Türkçe"), "<  %s  >" % (Loc.t("o_on") if Loc.fullscreen else Loc.t("o_off")), ""]
-    for i in 3:
-        var r := _opt_rect(i)
+    var labels := [Loc.t("o_language"), Loc.t("o_fullscreen"), Loc.t("o_music"), Loc.t("o_sfx"), Loc.t("o_back")]
+    for i in 5:
+        var base := _opt_rect(i)
+        var r := base
         var on := i == opt_sel
         if on:
-            r = r.grow_individual(14, 3, 14, 3)
+            r = base.grow_individual(14, 3, 14, 3)
         var c: Color = cols[i]
         _slab(r, c, on)
-        if i < 2:
-            draw_string(FontBtn, r.position + Vector2(24, 46), labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, COCOA)
-            draw_string(FontBtn, r.position + Vector2(0, 46), vals[i], HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 24.0, 28, COCOA)
+        if i == 4:
+            draw_string(FontBtn, base.position + Vector2(0, 41), labels[i], HORIZONTAL_ALIGNMENT_CENTER, base.size.x, 28, COCOA)
         else:
-            draw_string(FontBtn, r.position + Vector2(0, 46), labels[i], HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 28, COCOA)
+            draw_string(FontBtn, base.position + Vector2(24, 41), labels[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, COCOA)
+        if i == 0:
+            draw_string(FontBtn, base.position + Vector2(0, 41), "<  %s  >" % ("English" if Loc.lang == "en" else "Türkçe"), HORIZONTAL_ALIGNMENT_RIGHT, base.size.x - 24.0, 28, COCOA)
+        elif i == 1:
+            draw_string(FontBtn, base.position + Vector2(0, 41), "<  %s  >" % (Loc.t("o_on") if Loc.fullscreen else Loc.t("o_off")), HORIZONTAL_ALIGNMENT_RIGHT, base.size.x - 24.0, 28, COCOA)
+        elif i == 2 or i == 3:
+            var vol := Loc.music_vol if i == 2 else Loc.sfx_vol
+            var sx := base.position.x + 300.0
+            draw_rect(Rect2(sx, base.position.y + 26, 230, 10), Color(COCOA, 0.3))
+            draw_rect(Rect2(sx, base.position.y + 26, 230.0 * vol, 10), COCOA)
+            draw_circle(Vector2(sx + 230.0 * vol, base.position.y + 31), 11.0, CREAM)
+            draw_circle(Vector2(sx + 230.0 * vol, base.position.y + 31), 11.0, COCOA, false, 2.0)
+            draw_string(FontBtn, Vector2(sx + 242.0, base.position.y + 40), "%d%%" % int(round(vol * 100.0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, COCOA)
         if on:
             ArtS.recycle(self, Vector2(r.position.x - 28, r.get_center().y), 13.0, t * 2.0, CREAM)
-    draw_string(FontText, Vector2(0, 626), Loc.t("nav_hint"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 18, Color(CREAM, 0.85))
+    draw_string(FontText, Vector2(0, 626), Loc.t("nav_hint_lr"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 18, Color(CREAM, 0.85))
     _draw_back()
 
 
 func _draw_credits() -> void:
     _panel_bg()
     _outlined(Loc.t("c_title"), Vector2(0, 150), 1280.0, 56, CREAM, 8, FontTitle)
+    for i in 5:
+        _outlined(Loc.t("c_%d" % (i + 1)), Vector2(0, 240 + i * 62), 1280.0, 26, CREAM, 5)
     for i in 4:
-        _outlined(Loc.t("c_%d" % (i + 1)), Vector2(0, 270 + i * 70), 1280.0, 28, CREAM, 5)
-    for i in 4:
-        ArtS.trash(self, GameState.trash_types[i], Vector2(500 + i * 90, 560 + sin(t * 2.0 + i) * 6.0), 2.0)
+        ArtS.trash(self, GameState.trash_types[i], Vector2(500 + i * 90, 590 + sin(t * 2.0 + i) * 6.0), 2.0)
     _draw_back()
 
 

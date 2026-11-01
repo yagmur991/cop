@@ -43,6 +43,7 @@ func _input(event: InputEvent) -> void:
         return
     if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER):
         leaving = true
+        Sfx.play("card_start")
         get_viewport().set_input_as_handled()
 
 

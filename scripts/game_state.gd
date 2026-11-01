@@ -198,6 +198,7 @@ func apply_item(kind: String, trash_type: String = "") -> void:
     var text := ""
     if kind == "recycle":
         recycled_total += 1
+        Sfx.play("pickup_clean")
         lv_stats["saplings"] += 1
         add_pollution(-8.0)
         var pool: Array = ["speed", "shield", "heal"]
@@ -220,6 +221,7 @@ func apply_item(kind: String, trash_type: String = "") -> void:
                 text = Loc.t("msg_up_heal")
     else:
         trash_total += 1
+        Sfx.play("pickup_trash")
         lv_stats["trash"] += 1
         var had_sel := int(stock[trash_types[sel]]) > 0
         stock[trash_type] += 1

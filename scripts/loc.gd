@@ -3,11 +3,14 @@ extends Node
 # Use Loc.t("key") or Loc.t("key", [args]). Index 0 = English, 1 = Turkish.
 
 signal language_changed
+signal volume_changed
 
 const SETTINGS_PATH := "user://settings.cfg"
 
 var lang := "en"
 var fullscreen := false
+var music_vol := 0.6
+var sfx_vol := 0.8
 
 var S := {
     # ---------------- general / names ----------------
@@ -44,12 +47,15 @@ var S := {
     "o_fullscreen": ["Fullscreen", "Tam Ekran"],
     "o_on": ["On", "Açık"],
     "o_off": ["Off", "Kapalı"],
+    "o_music": ["Music Volume", "Müzik Sesi"],
+    "o_sfx": ["Sound Volume", "Ses Efektleri"],
     "o_back": ["Back", "Geri"],
     "c_title": ["Credits", "Emeği Geçenler"],
     "c_1": ["A game made for the hackathon by the Save Gaia team", "Save Gaia ekibi tarafından hackathon için yapıldı"],
     "c_2": ["Recycling bin sprite: yureino-kage (itch.io)", "Geri dönüşüm kutusu sprite'ı: yureino-kage (itch.io)"],
     "c_3": ["Made with Godot Engine", "Godot Engine ile yapıldı"],
-    "c_4": ["Thanks for playing!", "Oynadığın için teşekkürler!"],
+    "c_4": ["Music and sounds: original chiptune pieces made for this game", "Müzik ve sesler: bu oyun için yapılmış özgün chiptune besteler"],
+    "c_5": ["Thanks for playing!", "Oynadığın için teşekkürler!"],
     "nav_hint": ["W/S or Up/Down: select    Enter: confirm    Esc: back", "W/S veya Yukarı/Aşağı: seç    Enter: onayla    Esc: geri"],
     "nav_hint_lr": ["A/D or Left/Right: choose    Enter: confirm    Esc: back", "A/D veya Sol/Sağ: seç    Enter: onayla    Esc: geri"],
     # ---------------- how to play ----------------
@@ -203,6 +209,8 @@ func _ready() -> void:
     if cfg.load(SETTINGS_PATH) == OK:
         lang = str(cfg.get_value("game", "lang", "en"))
         fullscreen = bool(cfg.get_value("game", "fullscreen", false))
+        music_vol = float(cfg.get_value("game", "music_vol", 0.6))
+        sfx_vol = float(cfg.get_value("game", "sfx_vol", 0.8))
     # deferred: the window must exist before its mode can be changed reliably
     _apply_fullscreen.call_deferred(false)
 
@@ -216,6 +224,8 @@ func _save_settings() -> void:
     var cfg := ConfigFile.new()
     cfg.set_value("game", "lang", lang)
     cfg.set_value("game", "fullscreen", fullscreen)
+    cfg.set_value("game", "music_vol", music_vol)
+    cfg.set_value("game", "sfx_vol", sfx_vol)
     cfg.save(SETTINGS_PATH)
 
 
@@ -223,6 +233,18 @@ func set_lang(l: String) -> void:
     lang = l
     _save_settings()
     language_changed.emit()
+
+
+func set_music_vol(v: float) -> void:
+    music_vol = clampf(v, 0.0, 1.0)
+    _save_settings()
+    volume_changed.emit()
+
+
+func set_sfx_vol(v: float) -> void:
+    sfx_vol = clampf(v, 0.0, 1.0)
+    _save_settings()
+    volume_changed.emit()
 
 
 func set_fullscreen(v: bool) -> void:

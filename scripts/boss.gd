@@ -128,6 +128,7 @@ func _next_attack() -> void:
         return
     var options: Array = ["throw", "jump", "wave", "rain"] if boss_id == "plastic" else ["charge", "rain", "smoke", "wave"]
     pending = options.pick_random()
+    Sfx.play("warn")
     windup = 0.45 if phase2 else 0.65
     state_t = (1.4 if phase2 else 2.2) + windup
 
@@ -226,6 +227,7 @@ func _next_land_attack() -> void:
     options.erase(last_attack)
     pending = options.pick_random()
     last_attack = pending
+    Sfx.play("warn")
     windup = 0.35 if phase3 else (0.45 if phase2 else 0.65)
     state_t = (0.8 if phase3 else (1.25 if phase2 else 1.8)) + windup
 
@@ -337,6 +339,7 @@ func die() -> void:
     hit_cd = 0.35
     flash = 0.2
     hits += 1
+    Sfx.play("boss_hit")
     GameState.burst.emit(global_position + Vector2(0, -20), Color(1.0, 0.95, 0.8), 10)
     GameState.shake.emit(5.0, 0.18)
     GameState.hitstop.emit(0.05)
@@ -358,6 +361,7 @@ func die() -> void:
         get_parent().call_deferred("add_child", it)
     if hp <= 0:
         dead = true
+        Sfx.play("boss_down")
         GameState.shake.emit(14.0, 0.6)
         GameState.hitstop.emit(0.18)
         for k in 4:

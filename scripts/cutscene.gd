@@ -11,6 +11,46 @@ var idx := 0
 var shown := 0.0
 var t := 0.0
 var delay := 0.3
+var voice: AudioStreamPlayer
+var blip_narr: AudioStream
+var blip_gaia: AudioStream
+var last_shown := 0
+var voice_n := 0
+
+
+func _ready() -> void:
+    voice = AudioStreamPlayer.new()
+    add_child(voice)
+    if ResourceLoader.exists("res://assets/sfx/blip_narrator.wav"):
+        blip_narr = load("res://assets/sfx/blip_narrator.wav")
+    if ResourceLoader.exists("res://assets/sfx/blip_gaia.wav"):
+        blip_gaia = load("res://assets/sfx/blip_gaia.wav")
+
+
+func _voice_tick(txt: String) -> void:
+    var n := int(shown)
+    if n <= last_shown:
+        return
+    var who: String = slides[idx]["who"]
+    for i in range(last_shown, mini(n, txt.length())):
+        var ch := txt.substr(i, 1)
+        if ch.to_lower() != ch.to_upper():   # only letters make a sound
+            voice_n += 1
+            if voice_n % 2 == 0:
+                _blip(who == "who_gaia")
+    last_shown = n
+
+
+func _blip(gaia: bool) -> void:
+    if voice == null or Loc.sfx_vol <= 0.001:
+        return
+    var snd: AudioStream = blip_gaia if gaia else blip_narr
+    if snd == null:
+        return
+    voice.stream = snd
+    voice.pitch_scale = randf_range(1.05, 1.65) if gaia else randf_range(0.7, 1.1)
+    voice.volume_db = linear_to_db(Loc.sfx_vol) - 4.0
+    voice.play()
 
 
 static func intro_slides() -> Array:
@@ -57,17 +97,22 @@ func _process(delta: float) -> void:
     delay -= delta
     var txt := _text(slides[idx])
     shown = minf(shown + 45.0 * delta, float(txt.length()))
+    _voice_tick(txt)
     if delay <= 0.0:
         if Input.is_action_just_pressed("ui_cancel"):
+            Sfx.play("ui_back")
             set_process(false)
             finished.emit()
             return
         if Input.is_action_just_pressed("ui_accept"):
             if shown < float(txt.length()):
                 shown = float(txt.length())
+                last_shown = txt.length()
             else:
                 idx += 1
                 shown = 0.0
+                last_shown = 0
+                Sfx.play("ui_move")
                 if idx >= slides.size():
                     set_process(false)
                     finished.emit()

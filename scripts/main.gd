@@ -166,6 +166,7 @@ func _show_menu() -> void:
         level_root = null
     hud.hide()
     bg_layer.hide()
+    Music.play("menu")
     var m := MenuS.new()
     m.new_game.connect(_on_new_game)
     m.continue_game.connect(_on_continue)
@@ -176,6 +177,7 @@ func _on_new_game(diff: int) -> void:
     _clear_overlay()
     GameState.reset()
     GameState.difficulty = diff
+    Music.play("intro")
     var cs := CutsceneS.new()
     cs.slides = CutsceneS.intro_slides()
     cs.finished.connect(_on_intro_done)
@@ -223,6 +225,7 @@ func _begin_play(i: int, arena: bool) -> void:
 
 # ---------------- pause ----------------
 func _open_pause() -> void:
+    Sfx.play("ui_select")
     get_tree().paused = true
     pause_layer = CanvasLayer.new()
     pause_layer.layer = 50
@@ -252,6 +255,10 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     transitioning = false
     var d: Dictionary = levels[i]
     cur_theme = str(d.get("theme", "land"))
+    if arena:
+        Music.play("boss_" + String(d["boss"]))      # boss_plastic / boss_factory / boss_land
+    else:
+        Music.play("level%d" % (i + 1))               # level1 (sea) / level2 (air) / level3 (land)
     bg_node.theme = cur_theme
     card_pending = not arena and not restart
     boss_down = false
@@ -544,6 +551,7 @@ func _show_ending() -> void:
     hud.hide()
     bg_layer.hide()
     var clean := GameState.pollution < 50.0
+    Music.play("ending_good" if clean else "ending_bad")
     var slides: Array = CutsceneS.good_slides() if clean else CutsceneS.bad_slides()
     var title := Loc.t("end_clean") if clean else Loc.t("end_dirty")
     slides.append({"scene": "stats", "who": "", "raw": true, "text": Loc.t("end_stats", [title, GameState.trash_total, GameState.delivered_total, int(GameState.pollution)])})
