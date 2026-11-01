@@ -3,6 +3,8 @@ extends CharacterBody2D
 signal died
 
 const GRAVITY := 1500.0
+const ArtS = preload("res://scripts/art.gd")
+const SpritesS = preload("res://scripts/sprites.gd")
 const JUMP_V := -620.0
 
 var jumps_left := 1
@@ -14,6 +16,7 @@ var knock := 0.0
 var spawn_pos := Vector2(100, 560)
 var hitbox: Area2D
 var _dead := false
+var sprite: Sprite2D
 
 
 func _ready() -> void:
@@ -40,6 +43,11 @@ func _ready() -> void:
     hitbox.body_entered.connect(_on_hit_body)
     hitbox.area_entered.connect(_on_hit_area)
     add_child(hitbox)
+
+    # hero sprite (32x48), feet aligned with the bottom of the collision box
+    sprite = SpritesS.make(SpritesS.hero(GameState.char_idx), 1.0)
+    sprite.position = Vector2(0, 22)
+    add_child(sprite)
 
 
 func _on_hit_body(body: Node) -> void:
@@ -78,13 +86,15 @@ func _physics_process(delta: float) -> void:
     if Input.is_action_just_pressed("jump") and jumps_left > 0:
         velocity.y = JUMP_V
         jumps_left -= 1
+        Sfx.play("jump")
     if Input.is_action_just_released("jump") and velocity.y < -250.0:
         velocity.y *= 0.5
 
     if Input.is_action_just_pressed("attack") and attack_cd <= 0.0:
-        attack_cd = 0.3
+        attack_cd = GameState.attack_delay
         attack_vis = 0.15
         hitbox.monitoring = true
+        Sfx.play("attack")
 
     move_and_slide()
 
@@ -105,11 +115,15 @@ func hurt(from_x: float) -> void:
     knock = 0.2
     var side := 1.0 if global_position.x >= from_x else -1.0
     velocity = Vector2(side * 320.0, -250.0)
+    GameState.shake.emit(8.0, 0.25)
+    GameState.hitstop.emit(0.07)
+    GameState.burst.emit(global_position, Color(0.85, 0.3, 0.25), 8)
     if int(GameState.upgrades["shield"]) > 0:
         GameState.upgrades["shield"] -= 1
         GameState.changed.emit()
-        GameState.item_collected.emit("Kalkan hasarı emdi!")
+        GameState.item_collected.emit(Loc.t("msg_shield"))
         return
+    Sfx.play("hurt")
     _lose_hp()
 
 
@@ -122,10 +136,11 @@ func _lose_hp() -> void:
 
 
 func _draw() -> void:
-    draw_rect(Rect2(-14, -22, 28, 44), Color(0.2, 0.7, 0.6))
-    draw_rect(Rect2(-14, -22, 28, 10), Color(0.15, 0.55, 0.5))
-    draw_rect(Rect2(facing * 6 - 3, -16, 6, 6), Color.WHITE)
-    draw_rect(Rect2(-5, 0, 10, 10), Color(0.2, 0.5, 0.9))  # geri dönüşüm rozeti
+    sprite.flip_h = facing < 0
+    # the trash type E would drop right now, floating above the head
+    var held: String = GameState.trash_types[GameState.sel]
+    if int(GameState.stock[held]) > 0:
+        ArtS.trash(self, held, Vector2(0, -42.0 + sin(Time.get_ticks_msec() * 0.005) * 2.0), 0.8)
     if attack_vis > 0.0:
         var x := 14.0 if facing > 0 else -58.0
         draw_rect(Rect2(x, -20, 44, 40), Color(1, 1, 1, 0.45))
@@ -135,5 +150,5 @@ func _on_heat() -> void:
     if _dead or invuln > 0.0:
         return
     invuln = 1.0
-    GameState.item_collected.emit("SICAK HAVA DALGASI! Kirliliği düşür!")
+    GameState.item_collected.emit(Loc.t("msg_heat"))
     _lose_hp()
