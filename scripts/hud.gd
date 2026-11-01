@@ -1,5 +1,10 @@
 extends CanvasLayer
 
+const FontsS = preload("res://scripts/fonts.gd")
+const CarryBarS = preload("res://scripts/carry_bar.gd")
+const CREAM := Color(1.0, 0.96, 0.86)
+const OUTLINE := Color(0.24, 0.17, 0.13)
+
 var stats: Label
 var bar_fill: ColorRect
 var bar_label: Label
@@ -21,7 +26,7 @@ func _ready() -> void:
     var bg := ColorRect.new()
     bg.position = Vector2(20, 44)
     bg.size = Vector2(220, 16)
-    bg.color = Color(0, 0, 0, 0.5)
+    bg.color = Color(0.15, 0.1, 0.07, 0.55)
     add_child(bg)
     bar_fill = ColorRect.new()
     bar_fill.position = Vector2(20, 44)
@@ -39,6 +44,7 @@ func _ready() -> void:
     add_child(hint)
 
     _build_inventory()
+    add_child(CarryBarS.new())
     GameState.item_collected.connect(show_msg)
 
 
@@ -66,6 +72,7 @@ func _build_inventory() -> void:
 
     inv_label = Label.new()
     inv_label.add_theme_font_size_override("font_size", 22)
+    inv_label.add_theme_font_override("font", FontsS.BTN)
     inv_label.custom_minimum_size = Vector2(460, 0)
     margin.add_child(inv_label)
 
@@ -74,8 +81,9 @@ func _label(pos: Vector2, font_size: int) -> Label:
     var l := Label.new()
     l.position = pos
     l.add_theme_font_size_override("font_size", font_size)
-    l.add_theme_color_override("font_color", Color.WHITE)
-    l.add_theme_color_override("font_outline_color", Color.BLACK)
+    l.add_theme_font_override("font", FontsS.BTN)
+    l.add_theme_color_override("font_color", CREAM)
+    l.add_theme_color_override("font_outline_color", OUTLINE)
     l.add_theme_constant_override("outline_size", 6)
     return l
 
@@ -122,7 +130,7 @@ func _process(delta: float) -> void:
     hint.text = Loc.t("hud_hint")
     var p := GameState.pollution / 100.0
     bar_fill.size.x = 220.0 * p
-    bar_fill.color = Color(0.3, 0.8, 0.4).lerp(Color(0.8, 0.2, 0.15), p)
+    bar_fill.color = Color(0.55, 0.72, 0.5).lerp(Color(0.82, 0.4, 0.34), p)
     msg_t -= delta
     if msg_t <= 0.0:
         msg.text = ""

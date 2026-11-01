@@ -1,4 +1,6 @@
 extends Node2D
+
+const FontsS = preload("res://scripts/fonts.gd")
 # "Who are you?" character select. Each color gives a small perk.
 
 signal finished
@@ -54,9 +56,9 @@ func _char(p: Vector2, s: float, col: Color) -> void:
 
 
 func _draw() -> void:
-    var f := ThemeDB.fallback_font
+    var f: Font = FontsS.TEXT
     draw_rect(Rect2(0, 0, 1280, 720), Color(0.06, 0.08, 0.16))
-    draw_string(f, Vector2(0, 110), Loc.t("cs_title"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 60, Color.WHITE)
+    draw_string(FontsS.TITLE, Vector2(0, 110), Loc.t("cs_title"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 60, Color.WHITE)
     draw_string(f, Vector2(0, 150), Loc.t("cs_sub"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 22, Color(0.7, 0.7, 0.8))
     var n: int = GameState.char_colors.size()
     for i in n:
@@ -68,6 +70,6 @@ func _draw() -> void:
             draw_rect(Rect2(x - 60, 440, 120, 4), base)
         else:
             _char(Vector2(x, 360), 1.9, base.darkened(0.35))
-    draw_string(f, Vector2(0, 530), GameState.char_name(sel), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 40, GameState.char_colors[sel])
-    draw_string(f, Vector2(0, 575), GameState.char_perk(sel), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 26, Color.WHITE)
+    draw_string(FontsS.TITLE, Vector2(0, 530), GameState.char_name(sel), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 40, GameState.char_colors[sel])
+    draw_string(FontsS.BTN, Vector2(0, 575), GameState.char_perk(sel), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 26, Color.WHITE)
     draw_string(f, Vector2(0, 660), Loc.t("cs_hint"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 20, Color(0.6, 0.6, 0.7))

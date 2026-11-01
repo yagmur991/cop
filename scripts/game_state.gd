@@ -4,6 +4,9 @@ extends Node
 signal changed
 signal item_collected(text: String)
 signal heat_wave
+signal shake(amount: float, time: float)              # camera shake
+signal hitstop(time: float)                           # short freeze frame
+signal burst(pos: Vector2, col: Color, n: int)        # particle burst
 
 const SAVE_PATH := "user://savegame.json"
 
@@ -31,6 +34,10 @@ var running := false
 var heat_timer := 0.0
 var bins_done := 0
 var bins_total := 0
+var sel := 0                   # selected trash type (index into trash_types): what E drops into a bin
+var trash_bag: Array = []      # shuffle bag: every type shows up evenly, in random order
+var lv_stats := {}             # per-level numbers for the level summary card
+var lv_upg_start := {}         # upgrades at the start of the level (to show what was gained)
 
 
 func _ready() -> void:
@@ -41,6 +48,47 @@ func _ready() -> void:
     _add_action("jump", [KEY_SPACE, KEY_W, KEY_UP])
     _add_action("attack", [KEY_J, KEY_X, KEY_Z])
     _add_action("inventory", [KEY_B])
+    _add_action("deposit", [KEY_E])
+    _add_action("cycle", [KEY_Q])
+    reset_level_stats()
+
+
+# Q cycles through the types you carry, 1-4 pick a type directly
+func _unhandled_input(event: InputEvent) -> void:
+    if event.is_action_pressed("cycle"):
+        select_next()
+    elif event is InputEventKey and event.pressed and not event.echo:
+        var idx := int(event.physical_keycode) - int(KEY_1)
+        if idx >= 0 and idx < 4:
+            sel = idx
+            changed.emit()
+
+
+func select_next() -> void:
+    for k in range(1, 5):
+        var j := (sel + k) % 4
+        if int(stock[trash_types[j]]) > 0:
+            sel = j
+            changed.emit()
+            return
+    sel = (sel + 1) % 4
+    changed.emit()
+
+
+# never keep an empty type selected while another one is carried
+func fix_sel() -> void:
+    if int(stock[trash_types[sel]]) > 0:
+        return
+    for k in range(1, 4):
+        var j := (sel + k) % 4
+        if int(stock[trash_types[j]]) > 0:
+            sel = j
+            return
+
+
+func reset_level_stats() -> void:
+    lv_stats = {"ok": 0, "wrong": 0, "kills": 0, "saplings": 0, "trash": 0, "deaths": 0, "bins": 0}
+    lv_upg_start = upgrades.duplicate()
 
 
 func _add_action(action_name: String, keys: Array) -> void:
@@ -127,13 +175,18 @@ func reset() -> void:
     heat_timer = 0.0
     bins_done = 0
     bins_total = 0
+    sel = 0
+    trash_bag.clear()
+    reset_level_stats()
     changed.emit()
 
 
 func next_trash_type() -> String:
-    var t: String = trash_types[trash_cycle % 4]
+    if trash_bag.is_empty():
+        trash_bag = trash_types.duplicate()
+        trash_bag.shuffle()
     trash_cycle += 1
-    return t
+    return trash_bag.pop_back()
 
 
 func add_pollution(amount: float) -> void:
@@ -145,6 +198,7 @@ func apply_item(kind: String, trash_type: String = "") -> void:
     var text := ""
     if kind == "recycle":
         recycled_total += 1
+        lv_stats["saplings"] += 1
         add_pollution(-8.0)
         var pool: Array = ["speed", "shield", "heal"]
         if not upgrades["double_jump"]:
@@ -166,7 +220,11 @@ func apply_item(kind: String, trash_type: String = "") -> void:
                 text = Loc.t("msg_up_heal")
     else:
         trash_total += 1
+        lv_stats["trash"] += 1
+        var had_sel := int(stock[trash_types[sel]]) > 0
         stock[trash_type] += 1
+        if not had_sel:
+            sel = trash_types.find(trash_type)
         upgrades["damage"] += 1
         add_pollution(12.0)
         text = Loc.t("msg_trash", [trash_name(trash_type)])
@@ -177,7 +235,17 @@ func apply_item(kind: String, trash_type: String = "") -> void:
 func deposit(trash_type: String, n: int) -> void:
     stock[trash_type] -= n
     delivered_total += n
+    lv_stats["ok"] += n
     add_pollution(-10.0 * n)
+    fix_sel()
+
+
+# wrong bin: the item is spoiled and the pollution goes up
+func contaminate(trash_type: String) -> void:
+    stock[trash_type] -= 1
+    lv_stats["wrong"] += 1
+    add_pollution(8.0)
+    fix_sel()
 
 
 func _process(delta: float) -> void:
@@ -241,6 +309,7 @@ func load_game() -> Dictionary:
     upgrades = {"double_jump": bool(up.get("double_jump", false)), "speed": int(up.get("speed", 0)),
         "damage": int(up.get("damage", 0)), "shield": int(up.get("shield", 0))}
     hp = max_hp
+    fix_sel()
     changed.emit()
     return {"level": int(d.get("level", 0)), "arena": bool(d.get("arena", false))}
 

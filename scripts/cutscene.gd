@@ -1,4 +1,6 @@
 extends Node2D
+
+const FontsS = preload("res://scripts/fonts.gd")
 # Overcooked tarzı anlatıcılı sinematik. Görseller kodla çizilir; ileride sprite ile değiştirilebilir.
 # Enter: ilerle, Esc: sinematiği atla.
 
@@ -75,20 +77,20 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
     var s: Dictionary = slides[idx]
-    var f := ThemeDB.fallback_font
+    var f: Font = FontsS.TEXT
     var sc: String = s["scene"]
     _draw_scene(sc)
     var txt := _text(s)
     var part := txt.substr(0, int(shown))
     if sc == "stats":
-        draw_multiline_string(f, Vector2(0, 230), part, HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 32)
+        draw_multiline_string(FontsS.BTN, Vector2(0, 230), part, HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 32)
     elif sc != "who":
         draw_rect(Rect2(60, 510, 1160, 170), Color(0, 0, 0, 0.72))
         draw_rect(Rect2(60, 510, 1160, 170), Color(1, 1, 1, 0.8), false, 2.0)
-        draw_string(f, Vector2(90, 548), _who_name(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1.0, 0.85, 0.3))
+        draw_string(FontsS.BTN, Vector2(90, 548), _who_name(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.95, 0.82, 0.5))
         draw_multiline_string(f, Vector2(90, 590), part, HORIZONTAL_ALIGNMENT_LEFT, 1100.0, 26)
     if (sc == "who" or shown >= float(txt.length())) and int(t * 2.0) % 2 == 0:
-        draw_string(f, Vector2(1090, 668), Loc.t("cs_next"), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
+        draw_string(FontsS.BTN, Vector2(1090, 668), Loc.t("cs_next"), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
     draw_string(f, Vector2(1130, 28), Loc.t("cs_skip"), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, 0.6))
 
 
@@ -226,12 +228,12 @@ func _mentor_room(mood: int) -> void:
 
 
 func _who() -> void:
-    var f := ThemeDB.fallback_font
+    var f: Font = FontsS.TEXT
     draw_rect(Rect2(0, 0, 1280, 720), Color(0.03, 0.03, 0.06))
     var p := Vector2(640, 380)
     draw_rect(Rect2(p + Vector2(-14, -22) * 4.0, Vector2(28, 44) * 4.0), Color(0.12, 0.12, 0.16))
     draw_string(f, p + Vector2(-30, 25), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 110, Color(0.4, 0.4, 0.5))
-    draw_string(f, Vector2(0, 150), Loc.t("cs_title"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 72, Color.WHITE)
+    draw_string(FontsS.TITLE, Vector2(0, 150), Loc.t("cs_title"), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 72, Color(1.0, 0.96, 0.86))
 
 
 func _tree(p: Vector2, alive: bool) -> void:
@@ -283,9 +285,9 @@ func _grave() -> void:
         _tree(Vector2(100 + i * 260, 440), false)
     draw_rect(Rect2(570, 270, 140, 190), Color(0.55, 0.55, 0.58))
     draw_circle(Vector2(640, 270), 70.0, Color(0.55, 0.55, 0.58))
-    var f := ThemeDB.fallback_font
-    draw_string(f, Vector2(570, 300), "PROF.", HORIZONTAL_ALIGNMENT_CENTER, 140.0, 22, Color(0.2, 0.2, 0.22))
-    draw_string(f, Vector2(570, 330), "GAIA", HORIZONTAL_ALIGNMENT_CENTER, 140.0, 26, Color(0.2, 0.2, 0.22))
+    var f: Font = FontsS.TEXT
+    draw_string(FontsS.BTN, Vector2(570, 300), "PROF.", HORIZONTAL_ALIGNMENT_CENTER, 140.0, 22, Color(0.2, 0.2, 0.22))
+    draw_string(FontsS.BTN, Vector2(570, 330), "GAIA", HORIZONTAL_ALIGNMENT_CENTER, 140.0, 26, Color(0.2, 0.2, 0.22))
     draw_arc(Vector2(745, 455), 12.0, 0, TAU, 16, Color(0.1, 0.1, 0.1), 3.0)
     draw_arc(Vector2(775, 455), 12.0, 0, TAU, 16, Color(0.1, 0.1, 0.1), 3.0)
     draw_line(Vector2(757, 455), Vector2(763, 455), Color(0.1, 0.1, 0.1), 3.0)

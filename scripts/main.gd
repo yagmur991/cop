@@ -14,6 +14,9 @@ const CharSelectS = preload("res://scripts/char_select.gd")
 const MenuS = preload("res://scripts/menu.gd")
 const HowToS = preload("res://scripts/howto.gd")
 const LevelCardS = preload("res://scripts/level_card.gd")
+const SummaryCardS = preload("res://scripts/summary_card.gd")
+const BossBarS = preload("res://scripts/boss_bar.gd")
+const BurstS = preload("res://scripts/burst.gd")
 
 const ARENA := [
     Rect2(0, 650, 1280, 70), Rect2(140, 530, 200, 20), Rect2(940, 530, 200, 20), Rect2(540, 410, 200, 20)]
@@ -94,6 +97,14 @@ var cur_theme := "sea"          # sea / air / land (set per level)
 var card_layer: CanvasLayer
 var card_pending := false       # a level card is (about to be) showing
 var pending_msgs: Array = []    # HUD messages held back until the card closes
+var boss_layer: CanvasLayer
+var summary_layer: CanvasLayer
+var cam_node: Camera2D
+var shake_t := 0.0
+var shake_amp := 0.0
+var hitstop_on := false
+var boss_down := false          # the boss just fell; the summary card is coming
+var cp_stats := {}
 
 
 func _ready() -> void:
@@ -106,6 +117,13 @@ func _ready() -> void:
     hud = HudS.new()
     hud.hide()
     add_child(hud)
+    boss_layer = CanvasLayer.new()
+    boss_layer.layer = 7
+    boss_layer.add_child(BossBarS.new())
+    add_child(boss_layer)
+    GameState.shake.connect(_on_shake)
+    GameState.hitstop.connect(_on_hitstop)
+    GameState.burst.connect(_on_burst)
     _show_menu()
 
 
@@ -135,6 +153,12 @@ func _show_menu() -> void:
     GameState.running = false
     card_pending = false
     pending_msgs.clear()
+    boss_down = false
+    Engine.time_scale = 1.0
+    hitstop_on = false
+    if summary_layer:
+        summary_layer.queue_free()
+        summary_layer = null
     _clear_pause()
     _clear_overlay()
     if level_root:
@@ -230,12 +254,20 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     cur_theme = str(d.get("theme", "land"))
     bg_node.theme = cur_theme
     card_pending = not arena and not restart
+    boss_down = false
     if restart:
         GameState.pollution = cp_pollution
         GameState.stock = cp_stock.duplicate()
+        var deaths := int(GameState.lv_stats["deaths"])
+        GameState.lv_stats = cp_stats.duplicate()
+        GameState.lv_stats["deaths"] = deaths
+        GameState.fix_sel()
     else:
+        if not arena:
+            GameState.reset_level_stats()
         cp_pollution = GameState.pollution
         cp_stock = GameState.stock.duplicate()
+        cp_stats = GameState.lv_stats.duplicate()
         GameState.save_game(i, arena)   # auto-save: every level start and before every boss
         if arena or i > 0:
             _say(Loc.t("msg_saved"))
@@ -267,6 +299,7 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
         for e in d["enemies"]:
             var en := EnemyS.new()
             en.position = e
+            en.theme = cur_theme
             level_root.add_child(en)
         for c in d["chests"]:
             var ch := ChestS.new()
@@ -279,7 +312,7 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
         gate.total = d["bins"].size()
         gate.entered.connect(_on_gate_entered)
         level_root.add_child(gate)
-        GameState.bins_total = d["bins"].size()
+        GameState.bins_total = maxi(1, d["bins"].size() - 1)   # the gate needs all bins but one
         for bd in d["bins"]:
             var bn := BinS.new()
             bn.position = bd[0]
@@ -302,6 +335,7 @@ func start_level(i: int, arena: bool = false, restart: bool = false) -> void:
     cam.position_smoothing_enabled = true
     p.add_child(cam)
     cam.make_current()
+    cam_node = cam
     GameState.hp = GameState.max_hp
     GameState.changed.emit()
     if card_pending:
@@ -324,11 +358,70 @@ func _on_gate_entered() -> void:
 
 
 func _on_boss_defeated() -> void:
+    boss_down = true
     GameState.item_collected.emit(Loc.t("msg_boss_down"))
-    call_deferred("_after_boss")
+    get_tree().create_timer(1.8).timeout.connect(_after_boss)   # let the player enjoy the explosion
 
 
 func _after_boss() -> void:
+    if not playing or not boss_down or summary_layer != null:
+        return
+    if pause_layer != null:   # pause menu is open: try again a bit later
+        get_tree().create_timer(0.5).timeout.connect(_after_boss)
+        return
+    _show_summary()
+
+
+func _upgrades_text() -> String:
+    var u: Dictionary = GameState.upgrades
+    var u0: Dictionary = GameState.lv_upg_start
+    var parts := PackedStringArray()
+    var dmg := int(u["damage"]) - int(u0.get("damage", 0))
+    var spd := int(u["speed"]) - int(u0.get("speed", 0))
+    var shd := int(u["shield"]) - int(u0.get("shield", 0))
+    if dmg > 0:
+        parts.append("+%d %s" % [dmg, Loc.t("up_damage")])
+    if spd > 0:
+        parts.append("+%d %s" % [spd, Loc.t("up_speed")])
+    if shd > 0:
+        parts.append("+%d %s" % [shd, Loc.t("up_shield")])
+    if bool(u["double_jump"]) and not bool(u0.get("double_jump", false)):
+        parts.append(Loc.t("up_double"))
+    return ", ".join(parts) if parts.size() > 0 else Loc.t("sum_none")
+
+
+func _show_summary() -> void:
+    var st: Dictionary = GameState.lv_stats.duplicate()
+    st["pollution"] = GameState.pollution
+    var dd: Dictionary = levels[level_idx]
+    st["bins_all"] = dd["bins"].size()
+    var ok := int(st["ok"])
+    var wrong := int(st["wrong"])
+    var acc := 1.0 if ok + wrong == 0 else float(ok) / float(ok + wrong)
+    var card := SummaryCardS.new()
+    card.level_no = level_idx + 1
+    card.theme = cur_theme
+    card.stats = st
+    card.stars = [acc >= 0.8, GameState.pollution < 50.0, int(st["deaths"]) == 0]
+    card.upgrades_text = _upgrades_text()
+    card.fact_key = "boss_" + cur_theme
+    card.last = level_idx + 1 >= levels.size()
+    card.finished.connect(_on_summary_done)
+    summary_layer = CanvasLayer.new()
+    summary_layer.layer = 45
+    summary_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+    summary_layer.add_child(card)
+    add_child(summary_layer)
+    get_tree().paused = true
+
+
+func _on_summary_done() -> void:
+    get_tree().paused = false
+    pause_block = 0.4
+    boss_down = false
+    if summary_layer:
+        summary_layer.queue_free()
+        summary_layer = null
     if level_idx + 1 >= levels.size():
         _show_ending()
     else:
@@ -336,6 +429,9 @@ func _after_boss() -> void:
 
 
 func _on_player_died() -> void:
+    if boss_down:
+        return
+    GameState.lv_stats["deaths"] += 1
     GameState.item_collected.emit(Loc.t("msg_died"))
     call_deferred("start_level", level_idx, in_arena, true)
 
@@ -348,8 +444,44 @@ func _process(delta: float) -> void:
     else:
         RenderingServer.set_default_clear_color(Color(0.16, 0.12, 0.1))   # menu / cutscenes: warm letterbox
     pause_block = maxf(0.0, pause_block - delta)
+    if shake_t > 0.0 and is_instance_valid(cam_node):
+        shake_t -= delta
+        if shake_t <= 0.0:
+            shake_amp = 0.0
+            cam_node.offset = Vector2.ZERO
+        else:
+            cam_node.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_amp * clampf(shake_t / 0.3, 0.0, 1.0)
     if playing and pause_layer == null and not get_tree().paused and pause_block <= 0.0 and Input.is_action_just_pressed("ui_cancel"):
         _open_pause()
+
+
+# ---------------- game feel: shake, freeze frame, particles ----------------
+func _on_shake(amount: float, time: float) -> void:
+    shake_amp = maxf(shake_amp, amount)
+    shake_t = maxf(shake_t, time)
+
+
+func _on_hitstop(time: float) -> void:
+    if hitstop_on or not playing:
+        return
+    hitstop_on = true
+    Engine.time_scale = 0.06
+    get_tree().create_timer(time, true, false, true).timeout.connect(_end_hitstop)   # ignores time scale
+
+
+func _end_hitstop() -> void:
+    Engine.time_scale = 1.0
+    hitstop_on = false
+
+
+func _on_burst(pos: Vector2, col: Color, n: int) -> void:
+    if not is_instance_valid(level_root):
+        return
+    var b := BurstS.new()
+    b.position = pos
+    b.col = col
+    b.n = n
+    level_root.add_child(b)
 
 
 # ---------------- level themes + intro card ----------------

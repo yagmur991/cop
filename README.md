@@ -24,3 +24,17 @@ Platformer about collecting, sorting and recycling waste to save the planet.
 Each level starts with a title card (`scripts/level_card.gd`). Backgrounds are per theme (`scripts/background.gd`),
 platform and gate looks follow the theme / boss. Landfill Titan hazards live in `scripts/hazard.gd`.
 
+## Controls
+
+A/D move, Space/W jump, J/X attack, **E put the selected trash in a bin**, **Q or 1-4 choose which trash**, B inventory, Esc pause.
+
+## Systems added
+
+- **Real sorting:** trash is carried by type; stand in a bin and press E. Wrong bin = spoiled item + pollution (`recycle_bin.gd`, `game_state.gd`).
+- **Did you know?** fact on the level summary card.
+- **Game feel:** screen shake, freeze frame on hits, particle bursts (`burst.gd`, hooks in `main.gd`).
+- **Boss HUD:** name banner + top health bar (`boss_bar.gd`).
+- **Level summary** after every boss: accuracy, kills, pollution, upgrades, 0-3 saplings (`summary_card.gd`).
+- **Themed enemies:** plastic-bag jellyfish (sea), smog puff (air), tire monster (land) (`enemy.gd`).
+- **Fonts:** `fonts.gd` holds the three cozy fonts used by every screen.
+

@@ -10,6 +10,7 @@ signal defeated
 const ItemS = preload("res://scripts/item.gd")
 const ProjS = preload("res://scripts/projectile.gd")
 const HazardS = preload("res://scripts/hazard.gd")
+const FontsS = preload("res://scripts/fonts.gd")
 const MIN_HITS := 6   # boss en az bu kadar vuruşta ölür (hasar yükseltmeleri ne olursa olsun)
 
 var boss_id := "plastic"
@@ -109,6 +110,7 @@ func _physics_process(delta: float) -> void:
     if is_on_floor():
         if slam and air_t > 0.2:
             slam = false
+            GameState.shake.emit(8.0, 0.25)
             _ground_wave(false)
         air_t = 0.0
     else:
@@ -256,6 +258,7 @@ func _hazard(kind: String, pos: Vector2, props: Dictionary) -> void:
 # 1) QUAKE: pounds the ground; trash spikes erupt in both directions (+1 aimed at you from phase 2)
 func _quake() -> void:
     var lv := _lv()
+    GameState.shake.emit(10.0, 0.35)
     var per_side := 3 + lv
     var gap: float = [150.0, 125.0, 108.0][lv]
     for side in [-1.0, 1.0]:
@@ -334,6 +337,9 @@ func die() -> void:
     hit_cd = 0.35
     flash = 0.2
     hits += 1
+    GameState.burst.emit(global_position + Vector2(0, -20), Color(1.0, 0.95, 0.8), 10)
+    GameState.shake.emit(5.0, 0.18)
+    GameState.hitstop.emit(0.05)
     hp -= mini(1 + int(GameState.upgrades["damage"]), ceili(float(max_hp) / float(_min_hits())))
     if not phase2 and hp <= max_hp / 2.0 and hp > 0:
         phase2 = true
@@ -352,6 +358,10 @@ func die() -> void:
         get_parent().call_deferred("add_child", it)
     if hp <= 0:
         dead = true
+        GameState.shake.emit(14.0, 0.6)
+        GameState.hitstop.emit(0.18)
+        for k in 4:
+            GameState.burst.emit(global_position + Vector2(float(k - 2) * 30.0, -30.0), GameState.trash_colors[GameState.trash_types[k]], 14)
         later_q.clear()
         for h in get_tree().get_nodes_in_group("boss_hazard"):
             h.queue_free()
@@ -391,11 +401,7 @@ func _draw() -> void:
         _draw_land(white, rage)
     var is_land := boss_id == "land"
     if windup > 0.0:
-        draw_string(ThemeDB.fallback_font, Vector2(-10, -150.0 if is_land else -110.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(1.0, 0.2, 0.2))
-    var bar_w := 170.0 if is_land else 120.0
-    var bar_y := 74.0 if is_land else 58.0
-    draw_rect(Rect2(-bar_w / 2.0, bar_y, bar_w, 8), Color(0.2, 0.2, 0.2))
-    draw_rect(Rect2(-bar_w / 2.0, bar_y, bar_w * maxf(hp, 0) / max_hp, 8), Color(0.9, 0.2, 0.25))
+        draw_string(FontsS.BTN, Vector2(-10, -150.0 if is_land else -110.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(1.0, 0.2, 0.2))
 
 
 func _draw_land(white: bool, rage: Color) -> void:

@@ -3,6 +3,7 @@ extends CharacterBody2D
 signal died
 
 const GRAVITY := 1500.0
+const ArtS = preload("res://scripts/art.gd")
 const JUMP_V := -620.0
 
 var jumps_left := 1
@@ -105,6 +106,9 @@ func hurt(from_x: float) -> void:
     knock = 0.2
     var side := 1.0 if global_position.x >= from_x else -1.0
     velocity = Vector2(side * 320.0, -250.0)
+    GameState.shake.emit(8.0, 0.25)
+    GameState.hitstop.emit(0.07)
+    GameState.burst.emit(global_position, Color(0.85, 0.3, 0.25), 8)
     if int(GameState.upgrades["shield"]) > 0:
         GameState.upgrades["shield"] -= 1
         GameState.changed.emit()
@@ -127,6 +131,10 @@ func _draw() -> void:
     draw_rect(Rect2(-14, -22, 28, 10), col.darkened(0.2))
     draw_rect(Rect2(facing * 6 - 3, -16, 6, 6), Color.WHITE)
     draw_rect(Rect2(-5, 0, 10, 10), Color(0.2, 0.5, 0.9))  # geri dönüşüm rozeti
+    # the trash type E would drop right now, floating above the head
+    var held: String = GameState.trash_types[GameState.sel]
+    if int(GameState.stock[held]) > 0:
+        ArtS.trash(self, held, Vector2(0, -40.0 + sin(Time.get_ticks_msec() * 0.005) * 2.0), 0.8)
     if attack_vis > 0.0:
         var x := 14.0 if facing > 0 else -58.0
         draw_rect(Rect2(x, -20, 44, 40), Color(1, 1, 1, 0.45))

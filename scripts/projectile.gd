@@ -10,6 +10,7 @@ var col := Color(0.4, 0.8, 1.0)
 func _ready() -> void:
     collision_layer = 0
     collision_mask = 8
+    add_to_group("boss_hazard")
     var cs := CollisionShape2D.new()
     var c := CircleShape2D.new()
     c.radius = r

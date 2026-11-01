@@ -5,6 +5,8 @@ extends Area2D
 
 signal entered
 
+const FontsS = preload("res://scripts/fonts.gd")
+
 var boss_id := "plastic"
 var total := 4
 var done := 0
@@ -25,15 +27,25 @@ func _ready() -> void:
     add_child(cs)
 
 
+# One bin may be missed (e.g. an item dropped in the wrong bin): all bins but one open the gate.
+# Filling every bin is rewarded with extra greenery (less pollution) -> closer to the good ending.
+func required() -> int:
+    return maxi(1, total - 1)
+
+
 func unlocked() -> bool:
-    return done >= total
+    return done >= required()
 
 
 func bin_done() -> void:
     done += 1
     GameState.bins_done = done
-    if unlocked():
+    GameState.lv_stats["bins"] = done
+    if done == required():
         GameState.item_collected.emit(Loc.t("msg_gate_open"))
+    if done >= total and total > required():
+        GameState.add_pollution(-12.0)
+        GameState.item_collected.emit(Loc.t("msg_perfect"))
 
 
 func _process(delta: float) -> void:
@@ -52,7 +64,7 @@ func _physics_process(delta: float) -> void:
                     entered.emit()
             elif msg_cd <= 0.0:
                 msg_cd = 2.5
-                GameState.item_collected.emit(Loc.t("msg_gate_locked", [done, total]))
+                GameState.item_collected.emit(Loc.t("msg_gate_locked", [done, required()]))
 
 
 func _draw() -> void:
@@ -66,17 +78,20 @@ func _draw() -> void:
 
 
 func _draw_lock() -> void:
-    var f := ThemeDB.fallback_font
+    var f: Font = FontsS.BTN
     if unlocked():
         draw_rect(Rect2(-10, -14, 100, 214), Color(0.4, 1.0, 0.5, 0.25 + 0.15 * sin(t * 4.0)), false, 4.0)
+        var all_in := done >= total
+        draw_string_outline(f, Vector2(0, 134), "%d/%d" % [done, total], HORIZONTAL_ALIGNMENT_CENTER, 80.0, 22, 6, Color(0.24, 0.17, 0.13))
+        draw_string(f, Vector2(0, 134), "%d/%d" % [done, total], HORIZONTAL_ALIGNMENT_CENTER, 80.0, 22, Color(0.7, 1.0, 0.6) if all_in else Color(1.0, 0.96, 0.86))
         return
     draw_line(Vector2(0, 40), Vector2(80, 150), Color(0.7, 0.7, 0.75), 5.0)
     draw_line(Vector2(80, 40), Vector2(0, 150), Color(0.7, 0.7, 0.75), 5.0)
     draw_arc(Vector2(40, 88), 10.0, PI, TAU, 12, Color(0.85, 0.75, 0.3), 4.0)
     draw_rect(Rect2(27, 88, 26, 22), Color(0.85, 0.7, 0.2))
     draw_circle(Vector2(40, 99), 3.0, Color(0.2, 0.15, 0.05))
-    draw_string_outline(f, Vector2(0, 134), "%d/%d" % [done, total], HORIZONTAL_ALIGNMENT_CENTER, 80.0, 22, 6, Color.BLACK)
-    draw_string(f, Vector2(0, 134), "%d/%d" % [done, total], HORIZONTAL_ALIGNMENT_CENTER, 80.0, 22, Color.WHITE)
+    draw_string_outline(f, Vector2(0, 134), "%d/%d" % [done, required()], HORIZONTAL_ALIGNMENT_CENTER, 80.0, 22, 6, Color(0.24, 0.17, 0.13))
+    draw_string(f, Vector2(0, 134), "%d/%d" % [done, required()], HORIZONTAL_ALIGNMENT_CENTER, 80.0, 22, Color(1.0, 0.96, 0.86))
 
 
 func _draw_plastic() -> void:
@@ -204,7 +219,7 @@ func _draw_land() -> void:
     draw_polyline(wire, Color(0.62, 0.62, 0.65), 2.0)
     # warning sign
     draw_colored_polygon(PackedVector2Array([Vector2(20, -34), Vector2(60, -34), Vector2(40, -68)]), Color(0.9, 0.75, 0.1))
-    draw_string(ThemeDB.fallback_font, Vector2(34, -38), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(0.1, 0.1, 0.1))
+    draw_string(FontsS.BTN, Vector2(34, -38), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(0.1, 0.1, 0.1))
     # crows on the beam
     for k in 2:
         var cx := -2.0 + float(k) * 86.0

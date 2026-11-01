@@ -6,6 +6,7 @@ extends Area2D
 # drop:   a heavy junk chunk falls where its shadow shows, then bursts into shards
 
 const ProjS = preload("res://scripts/projectile.gd")
+const FontsS = preload("res://scripts/fonts.gd")
 const GROUND_Y := 650.0
 
 var kind := "spike"
@@ -149,6 +150,8 @@ func _step_drop(delta: float) -> void:
 
 
 func _burst() -> void:
+    GameState.shake.emit(3.0, 0.12)
+    GameState.burst.emit(Vector2(position.x, GROUND_Y - 8.0), Color(0.6, 0.5, 0.4), 8)
     var n := maxi(shards, 2)
     for i in n:
         var side := -1.0 if i % 2 == 0 else 1.0
@@ -242,7 +245,7 @@ func _draw_sweep() -> void:
         var ex := dir * 90.0   # the marker sits just inside the screen edge
         draw_dashed_line(Vector2(ex, 0), Vector2(dir * 1240.0, 0), Color(1.0, 0.3, 0.25, 0.2 + 0.2 * k), 3.0, 14.0)
         draw_colored_polygon(PackedVector2Array([Vector2(ex - 22.0, 18.0), Vector2(ex + 22.0, 18.0), Vector2(ex, -22.0)]), Color(1.0, 0.25, 0.2, 0.9 * blink))
-        draw_string(ThemeDB.fallback_font, Vector2(ex - 6.0, 12.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color.WHITE)
+        draw_string(FontsS.BTN, Vector2(ex - 6.0, 12.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color.WHITE)
         return
     if style == "boulder":
         draw_set_transform(Vector2.ZERO, spin, Vector2.ONE)

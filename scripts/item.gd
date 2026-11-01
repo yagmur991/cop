@@ -20,6 +20,10 @@ func _ready() -> void:
 
 func _on_body(body: Node) -> void:
     if body.is_in_group("player"):
+        var bc := Color(0.5, 0.9, 0.55)
+        if kind != "recycle":
+            bc = GameState.trash_colors[trash_type]
+        GameState.burst.emit(global_position, bc, 9)
         GameState.apply_item(kind, trash_type)
         if is_instance_valid(source) and source.has_method("item_taken"):
             source.item_taken()
