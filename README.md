@@ -126,7 +126,6 @@ assets/              sprites, fonts/, music/, sfx/
 
 ## Credits and licenses
 
-- Recycling bin sprites: yureino-kage (itch.io).
-- Other sprites, music and sound effects: made for this game by the Save Gaia team.
+- Sprites, music and sound effects: made for this game by the Save Gaia team.
 - Fonts: Young Serif and Lora, SIL Open Font License (see `assets/fonts/`).
 - Made with Godot Engine.
